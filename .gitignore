@@ -1,0 +1,70 @@
+###############################################################################
+#  C++ / CMake project: keep source & headers, ignore everything generated   #
+###############################################################################
+
+# ---------- build artifacts -------------------------------------------------
+# Local build directories
+build*/                 # e.g. build/, build-debug/, build-release/
+out*/                   # generic out/ folder (optional)
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+Testing/                # CTest
+
+# Visual Studio (MSBuild / Ninja) intermediates
+[Bb]in/
+[Oo]bj/
+ipch/
+*.vcxproj*
+*.sln*
+.vs/
+
+# ---------- binaries & libraries -------------------------------------------
+# Executables / DLLs / shared libraries / static libs
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+
+# Object files & assembly listings
+*.o
+*.obj
+*.s
+*.asm
+
+# ---------- package-manager caches -----------------------------------------
+vcpkg/
+vcpkg_installed/
+buildtrees/
+downloads/
+packages/
+
+# ---------- IDE / editor metadata ------------------------------------------
+.vscode/
+.idea/
+*.code-workspace
+
+# ---------- logs & temporary files -----------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+*.old
+*.swp
+*~
+
+# ---------- OS cruft --------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
