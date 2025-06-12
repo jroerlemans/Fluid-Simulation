@@ -107,8 +107,12 @@ static void key(unsigned char c, int x, int y){
             break;
         case 'v': case 'V': showVel=!showVel; break;
         case 'q': case 'Q': std::exit(0); break;
-        case '1': if (obstacleManager) obstacleManager->addFixedRect(i-2,j-2,5,5); break;
-        case '2': if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,8); break;
+        case '1': 
+            if (obstacleManager) obstacleManager->addFixedRect(i-2,j-2,5,5); 
+            break;
+        case '2': // <-- THE NEW BINDING
+            if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,8); 
+            break;
     }
 }
 
@@ -148,11 +152,6 @@ static void motion(int x, int y) {
         int new_j = int(((winY - y) / float(winY)) * N + 1);
         selected_obstacle->updatePosition(new_i - 4, new_j - 4);
         
-        // --- THE FIX ---
-        // Calculate velocity based on mouse movement since the last frame,
-        // but *without* dividing by the simulation's dt. This prevents
-        // the velocity from exploding when dt is small. The scale factor
-        // makes the speed feel intuitive.
         float vel_scale = 1.0f;
         float vx = (x - mx) * (N / float(winX)) * vel_scale;
         float vy = (my - y) * (N / float(winY)) * vel_scale;
@@ -170,11 +169,12 @@ int main(int argc,char** argv){
 
     grid = FluidGrid(N); solver = FluidSolver(grid,dt,diff,visc); solver.force=cmd_force; solver.source=cmd_source;
     obstacleManager.reset(new ObstacleManager(N));
-    obstacleManager->addMovableRect(N/2-5, N/2-5, 10, 10);
     solver.addBoundary(obstacleManager.get());
 
     glutInit(&argc,argv); glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE); glutInitWindowSize(winX,winY); glutCreateWindow("FluidToy – Stable Fluids Demo");
     glutDisplayFunc(display); glutIdleFunc(idle); glutKeyboardFunc(key); glutMouseFunc(mouse); glutMotionFunc(motion);
+    
+    // Updated help text
     std::puts("\nControls:\n"
               "  Left-drag   : add velocity (if not on object)\n"
               "  Left-click-drag object: move object\n"
