@@ -3,14 +3,15 @@
 #include <cstdio>
 #include <algorithm>
 #include <memory>
+#include <string>
 #include "FluidGrid.h"
 #include "FluidSolver.h"
 #include "ObstacleManager.h"
-#include "MovableRectObstacle.h" // Include for pointer type
+#include "MovableRectObstacle.h"
 
 // --- runtime-tunable params ---
+static float dt     = 0.1f; 
 static int   N      = 64;
-static float dt     = 0.1f;
 static float diff   = 0.f;
 static float visc   = 0.f;
 static float cmd_force  = 5.f;
@@ -27,9 +28,17 @@ static int  omx, omy, mx, my;
 
 // --- Interaction globals ---
 static MovableRectObstacle* selected_obstacle = nullptr;
-static bool is_dragging = false;
+static bool is_dragging_object = false;
+static bool is_dragging_slider = false;
 
-// --- drawing helpers (unchanged) ---
+// --- UI Globals for Slider ---
+const float slider_x = 50.f;
+const float slider_y = 30.f;
+const float slider_w = 200.f;
+const float dt_min = 0.01f;
+const float dt_max = 0.4f;
+
+// --- drawing helpers ---
 static void drawVelocity(){
     int N = grid.size(); float h = 1.0f/N; glColor3f(1,1,1); glLineWidth(1.0f); glBegin(GL_LINES);
     for(int i=1;i<=N;++i){ float x=(i-0.5f)*h; for(int j=1;j<=N;++j){ float y=(j-0.5f)*h; float u=grid.u()[IX(i,j,N)]; float v=grid.v()[IX(i,j,N)]; glVertex2f(x,y); glVertex2f(x+u, y+v); } }
@@ -43,11 +52,27 @@ static void drawDensity(){
     }} glEnd();
 }
 
-// --- interaction helper (unchanged) ---
+static void drawUI() {
+    glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, winX, 0, winY);
+    glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+
+    glColor3f(0.4f, 0.4f, 0.4f); glBegin(GL_LINES); glVertex2f(slider_x, slider_y); glVertex2f(slider_x + slider_w, slider_y); glEnd();
+    
+    float handle_x = slider_x + ((dt - dt_min) / (dt_max - dt_min)) * slider_w;
+    glColor3f(0.9f, 0.9f, 0.9f); glBegin(GL_QUADS);
+    glVertex2f(handle_x - 4, slider_y - 8); glVertex2f(handle_x + 4, slider_y - 8); glVertex2f(handle_x + 4, slider_y + 8); glVertex2f(handle_x - 4, slider_y + 8); glEnd();
+
+    char dt_text[64]; sprintf(dt_text, "Delta Time (dt): %.3f", dt);
+    glColor3f(1.0f, 1.0f, 1.0f); glRasterPos2f(slider_x, slider_y + 15);
+    for (const char* c = dt_text; *c != '\0'; ++c) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c); }
+    
+    glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
+}
+
 static void getFromUI(){
     std::fill(grid.m_uPrev.begin(), grid.m_uPrev.end(), 0.f); std::fill(grid.m_vPrev.begin(), grid.m_vPrev.end(), 0.f); std::fill(grid.m_densPrev.begin(), grid.m_densPrev.end(), 0.f);
     if(!mouseDown[0] && !mouseDown[2]) return;
-    if(is_dragging) return; // Don't add sources while dragging
+    if(is_dragging_object || is_dragging_slider) return;
     int i = int(( mx/float(winX))*N+1), j = int(((winY-my)/float(winY))*N+1);
     if(i<1||i>N||j<1||j>N) return;
     if(mouseDown[0]){ solver.addVelocity(i, j, solver.force*(mx-omx), solver.force*(omy-my)); }
@@ -55,9 +80,21 @@ static void getFromUI(){
     omx = mx; omy = my;
 }
 
-// --- GLUT callbacks ---
-static void display(){ glClear(GL_COLOR_BUFFER_BIT); if(showVel) drawVelocity(); else drawDensity(); if(obstacleManager) obstacleManager->draw(); glutSwapBuffers(); }
-static void idle(){ getFromUI(); solver.step(); glutPostRedisplay(); }
+static void display(){ 
+    glClear(GL_COLOR_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION); glLoadIdentity(); gluOrtho2D(0, 1, 0, 1);
+    if(showVel) drawVelocity(); else drawDensity(); 
+    if(obstacleManager) obstacleManager->draw(); 
+    drawUI();
+    glutSwapBuffers(); 
+}
+
+static void idle(){ 
+    solver.dt = dt;
+    getFromUI(); 
+    solver.step(); 
+    glutPostRedisplay(); 
+}
 
 static void key(unsigned char c, int x, int y){
     mx = x; my = y;
@@ -66,7 +103,7 @@ static void key(unsigned char c, int x, int y){
     switch(c){
         case 'c': case 'C':
             grid.reset(); if (obstacleManager) obstacleManager->clear();
-            selected_obstacle = nullptr; is_dragging = false;
+            selected_obstacle = nullptr; is_dragging_object = false;
             break;
         case 'v': case 'V': showVel=!showVel; break;
         case 'q': case 'Q': std::exit(0); break;
@@ -77,14 +114,17 @@ static void key(unsigned char c, int x, int y){
 
 static void mouse(int button, int state, int x, int y) {
     omx = mx = x; omy = my = y;
-    int i = int((mx / float(winX)) * N + 1);
-    int j = int(((winY - my) / float(winY)) * N + 1);
-
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        selected_obstacle = obstacleManager->findMovableAt(i, j);
-        if (selected_obstacle) {
-            is_dragging = true;
-            selected_obstacle->setSelected(true);
+        if (x >= slider_x - 5 && x <= slider_x + slider_w + 5 && (winY - y) >= slider_y - 10 && (winY - y) <= slider_y + 10) {
+            is_dragging_slider = true;
+        } else {
+            int i = int((mx / float(winX)) * N + 1);
+            int j = int(((winY - my) / float(winY)) * N + 1);
+            selected_obstacle = obstacleManager->findMovableAt(i, j);
+            if (selected_obstacle) {
+                is_dragging_object = true;
+                selected_obstacle->setSelected(true);
+            }
         }
     } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
         if (selected_obstacle) {
@@ -92,25 +132,36 @@ static void mouse(int button, int state, int x, int y) {
             selected_obstacle->setSelected(false);
             selected_obstacle = nullptr;
         }
-        is_dragging = false;
+        is_dragging_object = false;
+        is_dragging_slider = false;
     }
     mouseDown[button] = (state == GLUT_DOWN);
 }
 
 static void motion(int x, int y) {
-    if (is_dragging && selected_obstacle) {
+    if (is_dragging_slider) {
+        float new_dt = dt_min + ((x - slider_x) / slider_w) * (dt_max - dt_min);
+        dt = std::max(dt_min, std::min(dt_max, new_dt));
+    }
+    else if (is_dragging_object && selected_obstacle) {
         int new_i = int((x / float(winX)) * N + 1);
         int new_j = int(((winY - y) / float(winY)) * N + 1);
-        selected_obstacle->updatePosition(new_i - 4, new_j - 4); // Center on mouse
-
-        float vx = (x - mx) * (N / float(winX)) / dt;
-        float vy = (my - y) * (N / float(winY)) / dt;
+        selected_obstacle->updatePosition(new_i - 4, new_j - 4);
+        
+        // --- THE FIX ---
+        // Calculate velocity based on mouse movement since the last frame,
+        // but *without* dividing by the simulation's dt. This prevents
+        // the velocity from exploding when dt is small. The scale factor
+        // makes the speed feel intuitive.
+        float vel_scale = 1.0f;
+        float vx = (x - mx) * (N / float(winX)) * vel_scale;
+        float vy = (my - y) * (N / float(winY)) * vel_scale;
         selected_obstacle->setVelocity(vx, vy);
     }
-    mx = x; my = y;
+    mx = x; 
+    my = y;
 }
 
-// --- main ---
 int main(int argc,char** argv){
     if(argc!=1&&argc!=7){ std::fprintf(stderr, "usage: %s [N dt diff visc force source]\n",argv[0]); return 1; }
     if(argc==7){ N=atoi(argv[1]); dt=atof(argv[2]); diff=atof(argv[3]); visc=atof(argv[4]); cmd_force=atof(argv[5]); cmd_source=atof(argv[6]); }
@@ -119,15 +170,15 @@ int main(int argc,char** argv){
 
     grid = FluidGrid(N); solver = FluidSolver(grid,dt,diff,visc); solver.force=cmd_force; solver.source=cmd_source;
     obstacleManager.reset(new ObstacleManager(N));
-    obstacleManager->addMovableRect(N/2-5, N/2-5, 10, 10); // Add a movable block to start
+    obstacleManager->addMovableRect(N/2-5, N/2-5, 10, 10);
     solver.addBoundary(obstacleManager.get());
 
     glutInit(&argc,argv); glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE); glutInitWindowSize(winX,winY); glutCreateWindow("FluidToy – Stable Fluids Demo");
-    glMatrixMode(GL_PROJECTION); glLoadIdentity(); gluOrtho2D(0,1,0,1);
     glutDisplayFunc(display); glutIdleFunc(idle); glutKeyboardFunc(key); glutMouseFunc(mouse); glutMotionFunc(motion);
     std::puts("\nControls:\n"
               "  Left-drag   : add velocity (if not on object)\n"
               "  Left-click-drag object: move object\n"
+              "  Left-drag bottom slider: change delta time\n"
               "  Right-click : add density\n"
               "  1           : add a fixed solid block\n"
               "  2           : add a movable solid block\n"

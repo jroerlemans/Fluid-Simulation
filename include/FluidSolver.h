@@ -1,7 +1,7 @@
 #pragma once
 #include "FluidGrid.h"
 #include "BoundarySolver.h"
-#include "SolidBoundary.h" // Include the interface
+#include "SolidBoundary.h"
 #include <vector>
 #include <memory>
 
@@ -12,11 +12,12 @@ public:
     void step();
     void addDensity(int i,int j,float amount);
     void addVelocity(int i,int j,float u,float v);
-    
-    void addBoundary(SolidBoundary* b); // Method to add a boundary
+    void addBoundary(SolidBoundary* b);
 
+    // run-time parameters
     float force  = 5.f;
     float source = 100.f;
+    float dt; // <-- MOVED from private to public
 
 private:
     void diffuse (int b,float* x,float* x0,float diff);
@@ -24,6 +25,6 @@ private:
     void advect  (int b,float* d,float* d0,float* u,float* v);
 
     FluidGrid* g;  
-    float dt, diff, visc;
-    std::vector<SolidBoundary*> m_boundaries; // Store boundaries
+    float diff, visc; // dt is now public
+    std::vector<SolidBoundary*> m_boundaries;
 };
