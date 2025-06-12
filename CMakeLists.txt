@@ -16,23 +16,21 @@ add_library(fluid STATIC
     src/SolidBoundary.cpp
     src/Source.cpp
     src/Vec2.cpp
+    src/ObstacleManager.cpp   # <-- ADD THIS
+    src/RectObstacle.cpp      # <-- ADD THIS
+    # Obstacle.h is header-only, no .cpp needed
 )
 
 # Tell the 'fluid' library where to find its own header files.
-# By using PUBLIC, this include path will also be "propagated" to
-# any target that links against 'fluid' (like our FluidToy executable).
 target_include_directories(fluid PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include   
 )
 
-
 # --- Define Our Main Executable ---
 add_executable(FluidToy src/main.cpp)
 
 # Tell the FluidToy executable where to find the graphics headers.
-# We don't need to add our own 'src' directory here, because it will
-# get that automatically when we link against the 'fluid' library.
 target_include_directories(FluidToy PRIVATE
     ${OPENGL_INCLUDE_DIR}
     ${GLUT_INCLUDE_DIR}
@@ -40,10 +38,7 @@ target_include_directories(FluidToy PRIVATE
 
 # --- Link Everything Together ---
 target_link_libraries(FluidToy PRIVATE
-    # Link our simulation library. This also adds its include paths.
     fluid
-    
-    # Link the graphics libraries.
     ${GLUT_LIBRARIES}
     ${OPENGL_LIBRARIES}
 )

@@ -3,10 +3,13 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm> 
-// using BoundarySolver::setBounds; // <--- REMOVED: We will be explicit instead
 
 FluidSolver::FluidSolver(FluidGrid& grid,float dt_,float diff_,float visc_)
     :g(&grid),dt(dt_),diff(diff_),visc(visc_){} 
+
+void FluidSolver::addBoundary(SolidBoundary* b) {
+    m_boundaries.push_back(b);
+}
 
 // ===== public helpers =====================================================
 void FluidSolver::addDensity(int i,int j,float amount){
@@ -50,7 +53,7 @@ void FluidSolver::advect(int b,float* d,float* d0,float* u,float* v){
             s0*(t0*d0[IX(i0,j0,N)]+t1*d0[IX(i0,j1,N)]) +
             s1*(t0*d0[IX(i1,j0,N)]+t1*d0[IX(i1,j1,N)]);
     }
-    BoundarySolver::setBounds(N,b,d); // <--- CORRECTED
+    BoundarySolver::setBounds(N,b,d);
 }
 void FluidSolver::project(float* u,float* v,float* p,float* div){
     int N=g->size();
@@ -59,13 +62,13 @@ void FluidSolver::project(float* u,float* v,float* p,float* div){
                             + v[IX(i,j+1,N)]-v[IX(i,j-1,N)])/N;
         p[IX(i,j,N)]=0;
     }
-    BoundarySolver::setBounds(N,0,div); BoundarySolver::setBounds(N,0,p); // <--- CORRECTED
+    BoundarySolver::setBounds(N,0,div); BoundarySolver::setBounds(N,0,p);
     linSolve(N,0,p,div,1,4);
     for(int i=1;i<=N;++i)for(int j=1;j<=N;++j){
         u[IX(i,j,N)]-=0.5f*N*(p[IX(i+1,j,N)]-p[IX(i-1,j,N)]);
         v[IX(i,j,N)]-=0.5f*N*(p[IX(i,j+1,N)]-p[IX(i,j-1,N)]);
     }
-    BoundarySolver::setBounds(N,1,u); BoundarySolver::setBounds(N,2,v); // <--- CORRECTED
+    BoundarySolver::setBounds(N,1,u); BoundarySolver::setBounds(N,2,v);
 }
 
 // ===== main solver tick ====================================================
@@ -75,21 +78,24 @@ void FluidSolver::step(){
          *u0=g->m_uPrev.data(), *v0=g->m_vPrev.data(),
          *dens=g->dens(), *dens0=g->m_densPrev.data();
 
-    // Add sources from UI
     addSource(N, u, u0, dt);
     addSource(N, v, v0, dt);
     addSource(N, dens, dens0, dt);
 
-    // velocity
     std::swap(u0, u); diffuse (1,u,u0,visc);
     std::swap(v0, v); diffuse (2,v,v0,visc);
     project (u,v,u0,v0);
+
     std::swap(u0, u); std::swap(v0, v);
     advect  (1,u,u0,u0,v0);
     advect  (2,v,v0,u0,v0);
     project (u,v,u0,v0);
 
-    // density
     std::swap(dens0, dens); diffuse (0,dens,dens0,diff);
     std::swap(dens0, dens); advect  (0,dens,dens0,u,v);
+
+    // Apply all solid boundary conditions at the end of the step
+    for (auto& b : m_boundaries) {
+        b->applyTo(*g);
+    }
 }

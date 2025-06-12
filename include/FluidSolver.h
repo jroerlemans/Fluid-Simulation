@@ -1,16 +1,20 @@
 #pragma once
 #include "FluidGrid.h"
 #include "BoundarySolver.h"
+#include "SolidBoundary.h" // Include the interface
+#include <vector>
+#include <memory>
 
 class FluidSolver {
 public:
     FluidSolver(FluidGrid& grid,float dt,float diff,float visc);
 
-    void step();                                 // one simulation tick
+    void step();
     void addDensity(int i,int j,float amount);
     void addVelocity(int i,int j,float u,float v);
+    
+    void addBoundary(SolidBoundary* b); // Method to add a boundary
 
-    // run-time parameters (modifiable from UI)
     float force  = 5.f;
     float source = 100.f;
 
@@ -21,4 +25,5 @@ private:
 
     FluidGrid* g;  
     float dt, diff, visc;
+    std::vector<SolidBoundary*> m_boundaries; // Store boundaries
 };
