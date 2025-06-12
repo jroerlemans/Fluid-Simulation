@@ -16,9 +16,10 @@ add_library(fluid STATIC
     src/SolidBoundary.cpp
     src/Source.cpp
     src/Vec2.cpp
-    src/ObstacleManager.cpp   # <-- ADD THIS
-    src/RectObstacle.cpp      # <-- ADD THIS
-    # Obstacle.h is header-only, no .cpp needed
+    src/ObstacleManager.cpp
+    src/RectObstacle.cpp
+    src/MovableRectObstacle.cpp   # <-- ADD THIS
+    # Obstacle.h is header-only
 )
 
 # Tell the 'fluid' library where to find its own header files.
