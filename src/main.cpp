@@ -10,6 +10,7 @@ static int   N      = 64;
 static float dt     = 0.1f;
 static float diff   = 0.f;
 static float visc   = 0.f;
+static float vort   = 5.f;
 
 // parsed in main
 static float cmd_force  = 5.f;
@@ -17,7 +18,7 @@ static float cmd_source = 100.f;
 
 // --- globals ---------------------------------------------------------------
 static FluidGrid   grid(N);
-static FluidSolver solver(grid, dt, diff, visc);
+static FluidSolver solver(grid, dt, diff, visc, vort);
 
 static bool showVel = false;
 static int  winX = 512, winY = 512;
@@ -119,18 +120,19 @@ int main(int argc,char** argv){
     // ----- parse cmd line like original demo.c -----------------------------
     if(argc!=1 && argc!=7){
         std::fprintf(stderr,
-            "usage: %s [N dt diff visc force source]\n",argv[0]);
+            "usage: %s [N dt diff visc vort force source]\n",argv[0]);
         std::fprintf(stderr,
-            "  - example: %s 128 0.1 0 0 5 100\n", argv[0]);
+            "  - example: %s 128 0.1 0 0 10 5 100\n", argv[0]);
         return 1;
     }
-    if(argc==7){
+    if(argc==8){
         N      = std::atoi (argv[1]);
         dt     = std::atof (argv[2]);
         diff   = std::atof (argv[3]);
         visc   = std::atof (argv[4]);
-        cmd_force  = std::atof(argv[5]);
-        cmd_source = std::atof(argv[6]);
+        vort   = std::atof (argv[5]);
+        cmd_force  = std::atof(argv[6]);
+        cmd_source = std::atof(argv[7]);
     }
 
     // --- ADDED: Input validation to prevent bad_alloc crash ---
@@ -139,11 +141,11 @@ int main(int argc,char** argv){
         return 1;
     }
 
-    std::printf("Using: N=%d dt=%g diff=%g visc=%g force=%g source=%g\n",
-                N,dt,diff,visc,cmd_force,cmd_source);
+    std::printf("Using: N=%d dt=%g diff=%g visc=%g vort=%g force=%g source=%g\n",
+                N,dt,diff,visc,vort,cmd_force,cmd_source);
 
     grid   = FluidGrid(N);
-    solver = FluidSolver(grid,dt,diff,visc);
+    solver = FluidSolver(grid,dt,diff,visc,vort);
     solver.force  = cmd_force;
     solver.source = cmd_source;
 

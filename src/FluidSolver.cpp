@@ -3,10 +3,11 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm> 
+#include <iostream>
 // using BoundarySolver::setBounds; // <--- REMOVED: We will be explicit instead
 
-FluidSolver::FluidSolver(FluidGrid& grid,float dt_,float diff_,float visc_)
-    :g(&grid),dt(dt_),diff(diff_),visc(visc_){} 
+FluidSolver::FluidSolver(FluidGrid& grid,float dt_,float diff_,float visc_, float vort_)
+    :g(&grid),dt(dt_),diff(diff_),visc(visc_),vort(vort_){} 
 
 // ===== public helpers =====================================================
 void FluidSolver::addDensity(int i,int j,float amount){
@@ -68,17 +69,54 @@ void FluidSolver::project(float* u,float* v,float* p,float* div){
     BoundarySolver::setBounds(N,1,u); BoundarySolver::setBounds(N,2,v); // <--- CORRECTED
 }
 
+void FluidSolver::confine(float* u, float* v, float* w) {
+    int N = g->size();
+    float h  = 1.0f/N;
+    float h2 = 2.0f/N;
+
+    for(int i=1;i<=N;++i)for(int j=1;j<=N;++j){
+        // We only need to calculate the vorticity in the around the z-axis, as 
+        // the rotations for x- and y- axis are 0 in a 2D simulation.
+        w[IX(i,j,N)]  = v[IX(i+1,j,N)] - v[IX(i-1,j,N)] - u[IX(i,j+1,N)] + u[IX(i,j-1,N)];
+        w[IX(i,j,N)] /= h2;
+    }
+
+    // Calculate gradient using central difference method
+    for(int i=1;i<=N;++i)for(int j=1;j<=N;++j){
+        float gx = (std::abs(w[IX(i+1,j,N)]) - std::abs(w[IX(i-1,j,N)])) / h2;
+        float gy = (std::abs(w[IX(i,j+1,N)]) - std::abs(w[IX(i,j-1,N)])) / h2;
+
+        // normalize vector (gx, gy)
+        float dist = std::sqrt(gx*gx + gy*gy);
+
+        if (dist > 0) {
+            gx /= dist;
+            gy /= dist;
+        }
+
+        // N x w 
+        float fx = vort * h * gy * w[IX(i,j,N)];
+        float fy = vort * h * -gx * w[IX(i,j,N)];
+
+        addVelocity(i,j,dt*fx,dt*fy);
+    }
+}
+
 // ===== main solver tick ====================================================
 void FluidSolver::step(){
     int N=g->size();
-    auto *u=g->u(), *v=g->v(),
+    auto *u=g->u(), *v=g->v(), *w=g->vort(),
          *u0=g->m_uPrev.data(), *v0=g->m_vPrev.data(),
          *dens=g->dens(), *dens0=g->m_densPrev.data();
+    
 
     // Add sources from UI
     addSource(N, u, u0, dt);
     addSource(N, v, v0, dt);
     addSource(N, dens, dens0, dt);
+
+    // Vorticity confinement
+    confine(u, v, w);
 
     // velocity
     std::swap(u0, u); diffuse (1,u,u0,visc);

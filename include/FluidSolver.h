@@ -4,7 +4,7 @@
 
 class FluidSolver {
 public:
-    FluidSolver(FluidGrid& grid,float dt,float diff,float visc);
+    FluidSolver(FluidGrid& grid,float dt,float diff,float visc,float vort);
 
     void step();                                 // one simulation tick
     void addDensity(int i,int j,float amount);
@@ -19,6 +19,8 @@ private:
     void project (float* u,float* v,float* p,float* div);
     void advect  (int b,float* d,float* d0,float* u,float* v);
 
+    void confine (float* u, float* v, float* w);
+
     FluidGrid* g;  
-    float dt, diff, visc;
+    float dt, diff, visc, vort;
 };
