@@ -9,6 +9,7 @@ public:
     // Obstacle interface
     void apply(FluidGrid& grid) const override;
     void draw() const override;
+    void update(float dt) override;
 
     // Movable-specific methods
     void updatePosition(int newX, int newY);
@@ -16,9 +17,15 @@ public:
     bool contains(int x, int y) const;
     void setSelected(bool selected);
 
+
 private:
     int m_x, m_y, m_w, m_h;
     int m_gridN;
-    float m_vx = 0.f, m_vy = 0.f; // Object's velocity in grid cells/s
+
+    float m_angle, m_angularVelocity; // Angle is measured from the center of the body (degrees)
+    float m_vx = 0.f, m_vy = 0.f;     // Object's velocity in grid cells/s
     bool m_isSelected = false;
+
+
+    bool pointInsideRect(int x, int y) const;
 };

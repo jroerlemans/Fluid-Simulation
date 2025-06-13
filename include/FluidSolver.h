@@ -2,12 +2,13 @@
 #include "FluidGrid.h"
 #include "BoundarySolver.h"
 #include "SolidBoundary.h"
+#include "ObstacleManager.h"
 #include <vector>
 #include <memory>
 
 class FluidSolver {
 public:
-    FluidSolver(FluidGrid& grid,float dt,float diff,float visc);
+    FluidSolver(FluidGrid& grid, ObstacleManager* manager, float dt,float diff,float visc);
 
     void step();
     void addDensity(int i,int j,float amount);
@@ -27,4 +28,5 @@ private:
     FluidGrid* g;  
     float diff, visc; // dt is now public
     std::vector<SolidBoundary*> m_boundaries;
+    ObstacleManager* m_obstacleManager; 
 };

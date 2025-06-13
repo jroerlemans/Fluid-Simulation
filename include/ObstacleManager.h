@@ -13,6 +13,7 @@ public:
 
     // The main interface for the solver
     void applyTo(FluidGrid& grid) override;
+    void update(float dt);
 
     // Public methods for interaction
     void addFixedRect(int x, int y, int w, int h);

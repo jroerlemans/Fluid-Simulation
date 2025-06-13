@@ -4,8 +4,8 @@
 #include <cmath>
 #include <algorithm> 
 
-FluidSolver::FluidSolver(FluidGrid& grid,float dt_,float diff_,float visc_)
-    :g(&grid),dt(dt_),diff(diff_),visc(visc_){} 
+FluidSolver::FluidSolver(FluidGrid& grid, ObstacleManager* manager, float dt_,float diff_,float visc_)
+    :g(&grid),m_obstacleManager(manager),dt(dt_),diff(diff_),visc(visc_){} 
 
 void FluidSolver::addBoundary(SolidBoundary* b) {
     m_boundaries.push_back(b);
@@ -98,4 +98,6 @@ void FluidSolver::step(){
     for (auto& b : m_boundaries) {
         b->applyTo(*g);
     }
+
+    m_obstacleManager->update(dt);
 }

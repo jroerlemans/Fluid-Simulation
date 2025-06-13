@@ -19,7 +19,7 @@ static float cmd_source = 100.f;
 
 // --- globals ---
 static FluidGrid   grid(N);
-static FluidSolver solver(grid, dt, diff, visc);
+static FluidSolver solver(grid, nullptr, dt, diff, visc);
 static std::unique_ptr<ObstacleManager> obstacleManager;
 static bool showVel = false;
 static int  winX = 512, winY = 512;
@@ -92,7 +92,7 @@ static void display(){
 static void idle(){ 
     solver.dt = dt;
     getFromUI(); 
-    solver.step(); 
+    solver.step();
     glutPostRedisplay(); 
 }
 
@@ -111,7 +111,7 @@ static void key(unsigned char c, int x, int y){
             if (obstacleManager) obstacleManager->addFixedRect(i-2,j-2,5,5); 
             break;
         case '2': // <-- THE NEW BINDING
-            if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,8); 
+            if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,16); 
             break;
     }
 }
@@ -167,8 +167,8 @@ int main(int argc,char** argv){
     if(N<8||N>1024){ std::fprintf(stderr,"Error: Grid size N must be between 8 and 1024.\n"); return 1; }
     printf("Using: N=%d dt=%g diff=%g visc=%g force=%g source=%g\n",N,dt,diff,visc,cmd_force,cmd_source);
 
-    grid = FluidGrid(N); solver = FluidSolver(grid,dt,diff,visc); solver.force=cmd_force; solver.source=cmd_source;
     obstacleManager.reset(new ObstacleManager(N));
+    grid = FluidGrid(N); solver = FluidSolver(grid,obstacleManager.get(),dt,diff,visc); solver.force=cmd_force; solver.source=cmd_source;
     solver.addBoundary(obstacleManager.get());
 
     glutInit(&argc,argv); glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE); glutInitWindowSize(winX,winY); glutCreateWindow("FluidToy – Stable Fluids Demo");

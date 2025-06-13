@@ -14,6 +14,12 @@ void ObstacleManager::applyTo(FluidGrid& grid) {
     }
 }
 
+void ObstacleManager::update(float dt) {
+    for (const auto& obs : m_obstacles) {
+        obs->update(dt);
+    }
+}
+
 void ObstacleManager::addFixedRect(int x, int y, int w, int h) {
     m_obstacles.push_back(std::unique_ptr<Obstacle>(new RectObstacle(x, y, w, h, m_gridN)));
 }
