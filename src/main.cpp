@@ -118,7 +118,7 @@ static void motion(int x,int y){ mx=x; my=y; }
 // ---------------- main -----------------------------------------------------
 int main(int argc,char** argv){
     // ----- parse cmd line like original demo.c -----------------------------
-    if(argc!=1 && argc!=7){
+    if(argc!=1 && argc!=8){
         std::fprintf(stderr,
             "usage: %s [N dt diff visc vort force source]\n",argv[0]);
         std::fprintf(stderr,
