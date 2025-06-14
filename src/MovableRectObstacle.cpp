@@ -8,8 +8,7 @@
 #define PI 3.1415
 
 MovableRectObstacle::MovableRectObstacle(int x, int y, int w, int h, int gridN)
-    : m_x(x), m_y(y), m_w(w), m_h(h), m_gridN(gridN) {m_angle = 0.f; m_angularVelocity = 180.f;}
-
+    : m_x(x), m_y(y), m_w(w), m_h(h), m_gridN(gridN) {m_angle = 0.f; m_angularVelocity = 0.f;}
 
 bool MovableRectObstacle::pointInsideRect(int x, int y) const {
     float h = 1.f/ m_gridN;
@@ -107,6 +106,10 @@ void MovableRectObstacle::updatePosition(int newX, int newY) {
 void MovableRectObstacle::setVelocity(float vx, float vy) {
     m_vx = vx;
     m_vy = vy;
+}
+
+void MovableRectObstacle::setAngularVelocity(float degreesPerSecond) {
+    m_angularVelocity = degreesPerSecond;
 }
 
 bool MovableRectObstacle::contains(int x, int y) const {

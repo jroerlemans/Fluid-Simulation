@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <iostream>
 #include "FluidGrid.h"
 #include "FluidSolver.h"
 #include "ObstacleManager.h"
@@ -138,7 +139,13 @@ static void mouse(int button, int state, int x, int y) {
         }
         is_dragging_object = false;
         is_dragging_slider = false;
+    } 
+
+    // Right mouse-button rotates the selected object
+    if (button == GLUT_RIGHT_BUTTON && selected_obstacle) {
+        selected_obstacle->setAngularVelocity(state == GLUT_DOWN ? 90.f : 0.f);
     }
+
     mouseDown[button] = (state == GLUT_DOWN);
 }
 

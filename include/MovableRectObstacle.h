@@ -14,6 +14,7 @@ public:
     // Movable-specific methods
     void updatePosition(int newX, int newY);
     void setVelocity(float vx, float vy);
+    void setAngularVelocity(float degreesPerSecond);
     bool contains(int x, int y) const;
     void setSelected(bool selected);
 
