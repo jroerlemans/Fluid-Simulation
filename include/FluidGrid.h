@@ -11,6 +11,7 @@ public:
     float* u()                    { return m_u.data(); }
     float* v()                    { return m_v.data(); }
     float* dens()                 { return m_dens.data(); }
+    float* vort()                 { return m_vort.data(); }
     void   reset();
 
 private:
@@ -19,7 +20,7 @@ private:
     size_t m_arrSz;
 
     // These vectors depend on m_arrSz, so they come after.
-    std::vector<float> m_u, m_v, m_dens;
+    std::vector<float> m_u, m_v, m_dens, m_vort;
 
 public:
     // These vectors also depend on m_arrSz, so they must also come after.

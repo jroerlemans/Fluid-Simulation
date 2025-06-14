@@ -15,13 +15,17 @@ static float dt     = 0.1f;
 static int   N      = 64;
 static float diff   = 0.f;
 static float visc   = 0.f;
+static float vort   = 5.f;
+
+// parsed in main
 static float cmd_force  = 5.f;
 static float cmd_source = 100.f;
 
 // --- globals ---
 static FluidGrid   grid(N);
-static FluidSolver solver(grid, nullptr, dt, diff, visc);
 static std::unique_ptr<ObstacleManager> obstacleManager;
+static FluidSolver solver(grid, nullptr, dt, diff, visc, vort);
+
 static bool showVel = false;
 static int  winX = 512, winY = 512;
 static int  mouseDown[3] = {0,0,0};
@@ -169,15 +173,17 @@ static void motion(int x, int y) {
 }
 
 int main(int argc,char** argv){
-    if(argc!=1&&argc!=7){ std::fprintf(stderr, "usage: %s [N dt diff visc force source]\n",argv[0]); return 1; }
-    if(argc==7){ N=atoi(argv[1]); dt=atof(argv[2]); diff=atof(argv[3]); visc=atof(argv[4]); cmd_force=atof(argv[5]); cmd_source=atof(argv[6]); }
-    if(N<8||N>1024){ std::fprintf(stderr,"Error: Grid size N must be between 8 and 1024.\n"); return 1; }
-    printf("Using: N=%d dt=%g diff=%g visc=%g force=%g source=%g\n",N,dt,diff,visc,cmd_force,cmd_source);
+    if(argc!=1&&argc!=8){ std::fprintf(stderr, "usage: %s [N dt diff visc vort force source]\n",argv[0]); return 1; }
+    if(argc==8){ N=atoi(argv[1]); dt=atof(argv[2]); diff=atof(argv[3]); visc=atof(argv[4]); vort=atof(argv[5]); cmd_force=atof(argv[6]); cmd_source=atof(argv[7]); }
+    if(N<9||N>1024){ std::fprintf(stderr,"Error: Grid size N must be between 8 and 1024.\n"); return 1; }
+    printf("Using: N=%d dt=%g diff=%g visc=%g vort=%g force=%g source=%g\n",N,dt,diff,visc,vort,cmd_force,cmd_source);
 
     obstacleManager.reset(new ObstacleManager(N));
-    grid = FluidGrid(N); solver = FluidSolver(grid,obstacleManager.get(),dt,diff,visc); solver.force=cmd_force; solver.source=cmd_source;
+    grid = FluidGrid(N); solver = FluidSolver(grid,obstacleManager.get(),dt,diff,visc,vort); solver.force=cmd_force; solver.source=cmd_source;
     solver.addBoundary(obstacleManager.get());
 
+
+    // ----- GLUT ------------------------------------------------------------
     glutInit(&argc,argv); glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE); glutInitWindowSize(winX,winY); glutCreateWindow("FluidToy – Stable Fluids Demo");
     glutDisplayFunc(display); glutIdleFunc(idle); glutKeyboardFunc(key); glutMouseFunc(mouse); glutMotionFunc(motion);
     
