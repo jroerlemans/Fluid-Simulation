@@ -4,33 +4,34 @@
 #include <GL/glut.h>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
+#include <limits>
 
-#define PI 3.1415
+#define PI 3.1415926535f
 
 MovableRectObstacle::MovableRectObstacle(int x, int y, int w, int h, int gridN)
-    : m_x(x), m_y(y), m_w(w), m_h(h), m_gridN(gridN) {m_angle = 0.f; m_angularVelocity = 0.f;}
+    : MovableObstacle(static_cast<float>(x), static_cast<float>(y)), m_w(w), m_h(h), m_gridN(gridN) 
+{
+    m_mass = static_cast<float>(m_w * m_h);
+    m_inverseMass = (m_mass > 0) ? 1.0f / m_mass : 0.0f;
+}
 
-bool MovableRectObstacle::pointInsideRect(int x, int y) const {
-    float h = 1.f/ m_gridN;
-    float rads = PI*m_angle / 180;
+bool MovableRectObstacle::contains(int x, int y) const {
+    float rads = PI * m_angle / 180.0f;
     
-    // Translate to m_x, m_y
-    float tx = x - m_x - m_w/2.f;
-    float ty = y - m_y - m_h/2.f;
+    Vec2 center = getCenter();
+    
+    float tx = static_cast<float>(x) - center.x;
+    float ty = static_cast<float>(y) - center.y;
 
-    float sin_angle = std::sin(rads);
-    float cos_angle = std::cos(rads);
+    float sin_angle = std::sin(-rads);
+    float cos_angle = std::cos(-rads);
 
-    float lx = std::abs(tx * cos_angle + ty * sin_angle);
-    float ly = std::abs(-tx * sin_angle + ty * cos_angle);
+    float rotated_x = tx * cos_angle - ty * sin_angle;
+    float rotated_y = tx * sin_angle + ty * cos_angle;
 
-    return lx <= m_w/2.f && ly <= m_h/2.f;
+    return std::abs(rotated_x) <= m_w / 2.f && std::abs(rotated_y) <= m_h / 2.f;
 }
-
-void MovableRectObstacle::update(float dt) {
-    m_angle += m_angularVelocity * dt; 
-}
-
 
 void MovableRectObstacle::apply(FluidGrid& grid) const {
     float* u = grid.u();
@@ -38,30 +39,20 @@ void MovableRectObstacle::apply(FluidGrid& grid) const {
     float* dens = grid.dens();
     int N = grid.size();
 
-    // TODO: do this with bounding box
-    for (int i = 1; i <= N; ++i) {
-        for (int j = 1; j <= N; ++j) {
-            if(!pointInsideRect(i, j)) continue;
+    float max_dim = std::sqrt(static_cast<float>(m_w*m_w + m_h*m_h)) / 2.f + 2.f;
+    Vec2 center = getCenter();
+    int i_min = std::max(1, static_cast<int>(center.x - max_dim));
+    int i_max = std::min(N, static_cast<int>(center.x + max_dim));
+    int j_min = std::max(1, static_cast<int>(center.y - max_dim));
+    int j_max = std::min(N, static_cast<int>(center.y + max_dim));
 
-            float h = 1.f / N;
-            float cwx = (m_x + m_w / 2.f)*h;
-            float cwy = (m_y + m_h / 2.f)*h;
-            float cewx = (i + .5f) *h;
-            float cewy = (j + .5f) *h;
-
-            float rx = cewx - cwx;
-            float ry = cewy - cwy;
-
-            float rads_second = PI*m_angularVelocity/180;
-            float rot_vx = -rads_second*ry;
-            float rot_vy =  rads_second*rx;
-
-            rot_vx = 0;
-            rot_vy = 0;
-                        
-            u[IX(i, j, N)] = m_vx + rot_vx;
-            v[IX(i, j, N)] = m_vy + rot_vy;
-            dens[IX(i, j, N)] = 0.f;
+    for (int i = i_min; i <= i_max; ++i) {
+        for (int j = j_min; j <= j_max; ++j) {
+            if(contains(i, j)) {
+                u[IX(i, j, N)] = m_vx;
+                v[IX(i, j, N)] = m_vy;
+                dens[IX(i, j, N)] = 0.f;
+            }
         }
     }
 }
@@ -73,49 +64,55 @@ void MovableRectObstacle::draw() const {
         glColor3f(0.8f, 0.5f, 0.2f); // Orange for movable
     }
 
-    // Convert radians to degrees
     float h = 1.0f / m_gridN;
+    
+    Vec2 center = getCenter();
+    float cx = h * center.x;
+    float cy = h * center.y;
 
-    float cx = h*(m_x + m_x + m_w) / 2;
-    float cy = h*(m_y + m_y + m_h) / 2;
-
-    float x0 = h*(-m_w / 2.f);
-    float y0 = h*(-m_h / 2.f);
-    float x1 = h*(m_w / 2.f);
-    float y1 = h*(m_h / 2.f);
-
+    float hw = h * (m_w / 2.f);
+    float hh = h * (m_h / 2.f);
+    
     glPushMatrix();
     glTranslatef(cx, cy, 0.f);
     glRotatef(m_angle, 0.f, 0.f, 1.f);
     
     glBegin(GL_QUADS);
-    glVertex2f(x0, y0);
-    glVertex2f(x1, y0);
-    glVertex2f(x1, y1);
-    glVertex2f(x0, y1);
+    glVertex2f(-hw, -hh);
+    glVertex2f( hw, -hh);
+    glVertex2f( hw,  hh);
+    glVertex2f(-hw,  hh);
     glEnd();
 
     glPopMatrix();
 }
 
 void MovableRectObstacle::updatePosition(int newX, int newY) {
-    m_x = newX;
-    m_y = newY;
+    m_x = static_cast<float>(newX);
+    m_y = static_cast<float>(newY);
 }
 
-void MovableRectObstacle::setVelocity(float vx, float vy) {
-    m_vx = vx;
-    m_vy = vy;
+Vec2 MovableRectObstacle::getCenter() const {
+    return getPosition() + Vec2(m_w/2.f, m_h/2.f);
 }
 
-void MovableRectObstacle::setAngularVelocity(float degreesPerSecond) {
-    m_angularVelocity = degreesPerSecond;
-}
+void MovableRectObstacle::getVertices(std::vector<Vec2>& vertices) const {
+    vertices.resize(4);
+    Vec2 center = getCenter();
+    
+    vertices[0] = Vec2(-m_w/2.f, -m_h/2.f);
+    vertices[1] = Vec2( m_w/2.f, -m_h/2.f);
+    vertices[2] = Vec2( m_w/2.f,  m_h/2.f);
+    vertices[3] = Vec2(-m_w/2.f,  m_h/2.f);
 
-bool MovableRectObstacle::contains(int x, int y) const {
-    return (x >= m_x && x < m_x + m_w && y >= m_y && y < m_y + m_h);
-}
+    float rads = m_angle * PI / 180.0f;
+    float s = std::sin(rads);
+    float c = std::cos(rads);
 
-void MovableRectObstacle::setSelected(bool selected) {
-    m_isSelected = selected;
+    for (int i = 0; i < 4; ++i) {
+        float x_rot = vertices[i].x * c - vertices[i].y * s;
+        float y_rot = vertices[i].x * s + vertices[i].y * c;
+        vertices[i].x = x_rot + center.x;
+        vertices[i].y = y_rot + center.y;
+    }
 }

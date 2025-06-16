@@ -28,13 +28,13 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 32,
+				"line" : 34,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 41,
+				"line" : 36,
 				"parent" : 0
 			}
 		]
@@ -45,15 +45,11 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-g -std=gnu++11"
+					"fragment" : "-g -std=c++14"
 				}
 			],
 			"includes" : 
 			[
-				{
-					"backtrace" : 2,
-					"path" : "D:/TUE/Q4/Simulations/A2/src"
-				},
 				{
 					"backtrace" : 2,
 					"path" : "D:/TUE/Q4/Simulations/A2/include"
@@ -66,7 +62,7 @@
 				[
 					1
 				],
-				"standard" : "11"
+				"standard" : "14"
 			},
 			"sourceIndexes" : 
 			[

@@ -8,7 +8,8 @@
 #include "FluidGrid.h"
 #include "FluidSolver.h"
 #include "ObstacleManager.h"
-#include "MovableRectObstacle.h"
+#include "MovableObstacle.h" // Use the new base class
+#include "Vec2.h"
 
 // --- runtime-tunable params ---
 static float dt     = 0.1f; 
@@ -32,7 +33,7 @@ static int  mouseDown[3] = {0,0,0};
 static int  omx, omy, mx, my;
 
 // --- Interaction globals ---
-static MovableRectObstacle* selected_obstacle = nullptr;
+static MovableObstacle* selected_obstacle = nullptr; // Changed to base class pointer
 static bool is_dragging_object = false;
 static bool is_dragging_slider = false;
 
@@ -80,8 +81,8 @@ static void getFromUI(){
     if(is_dragging_object || is_dragging_slider) return;
     int i = int(( mx/float(winX))*N+1), j = int(((winY-my)/float(winY))*N+1);
     if(i<1||i>N||j<1||j>N) return;
-    if(mouseDown[0]){ solver.addVelocity(i, j, solver.force*(mx-omx), solver.force*(omy-my)); }
-    if(mouseDown[2]){ solver.addDensity(i, j, solver.source); }
+    if(mouseDown[0]){ solver.addVelocity(i, j, cmd_force*(mx-omx), cmd_force*(omy-my)); }
+    if(mouseDown[2]){ solver.addDensity(i, j, cmd_source); }
     omx = mx; omy = my;
 }
 
@@ -97,6 +98,12 @@ static void display(){
 static void idle(){ 
     solver.dt = dt;
     getFromUI(); 
+
+    if (obstacleManager) {
+        obstacleManager->update(dt);
+        obstacleManager->handleCollisions();
+    }
+    
     solver.step();
     glutPostRedisplay(); 
 }
@@ -115,8 +122,11 @@ static void key(unsigned char c, int x, int y){
         case '1': 
             if (obstacleManager) obstacleManager->addFixedRect(i-2,j-2,5,5); 
             break;
-        case '2': // <-- THE NEW BINDING
+        case '2':
             if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,16); 
+            break;
+        case '3': // New binding for disks
+            if (obstacleManager) obstacleManager->addDisk(i, j, 6);
             break;
     }
 }
@@ -129,7 +139,7 @@ static void mouse(int button, int state, int x, int y) {
         } else {
             int i = int((mx / float(winX)) * N + 1);
             int j = int(((winY - my) / float(winY)) * N + 1);
-            selected_obstacle = obstacleManager->findMovableAt(i, j);
+            selected_obstacle = obstacleManager->findMovableAt(i, j); // This now returns MovableObstacle*
             if (selected_obstacle) {
                 is_dragging_object = true;
                 selected_obstacle->setSelected(true);
@@ -145,9 +155,10 @@ static void mouse(int button, int state, int x, int y) {
         is_dragging_slider = false;
     } 
 
-    // Right mouse-button rotates the selected object
-    if (button == GLUT_RIGHT_BUTTON && selected_obstacle) {
-        selected_obstacle->setAngularVelocity(state == GLUT_DOWN ? 90.f : 0.f);
+    if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN && selected_obstacle) {
+         selected_obstacle->setAngularVelocity(90.f);
+    } else if (button == GLUT_RIGHT_BUTTON && state == GLUT_UP && selected_obstacle) {
+         selected_obstacle->setAngularVelocity(0.f);
     }
 
     mouseDown[button] = (state == GLUT_DOWN);
@@ -159,11 +170,12 @@ static void motion(int x, int y) {
         dt = std::max(dt_min, std::min(dt_max, new_dt));
     }
     else if (is_dragging_object && selected_obstacle) {
-        int new_i = int((x / float(winX)) * N + 1);
-        int new_j = int(((winY - y) / float(winY)) * N + 1);
-        selected_obstacle->updatePosition(new_i - 4, new_j - 4);
+        float new_i = (x / float(winX)) * N;
+        float new_j = ((winY - y) / float(winY)) * N;
         
-        float vel_scale = 1.0f;
+        selected_obstacle->updatePosition(Vec2(new_i, new_j));
+        
+        float vel_scale = dt > 0 ? 1.0f / dt : 0.f;
         float vx = (x - mx) * (N / float(winX)) * vel_scale;
         float vy = (my - y) * (N / float(winY)) * vel_scale;
         selected_obstacle->setVelocity(vx, vy);
@@ -179,22 +191,24 @@ int main(int argc,char** argv){
     printf("Using: N=%d dt=%g diff=%g visc=%g vort=%g force=%g source=%g\n",N,dt,diff,visc,vort,cmd_force,cmd_source);
 
     obstacleManager.reset(new ObstacleManager(N));
-    grid = FluidGrid(N); solver = FluidSolver(grid,obstacleManager.get(),dt,diff,visc,vort); solver.force=cmd_force; solver.source=cmd_source;
+    grid = FluidGrid(N); 
+    solver = FluidSolver(grid, obstacleManager.get(), dt, diff, visc, vort);
+    solver.force = cmd_force;
+    solver.source = cmd_source;
     solver.addBoundary(obstacleManager.get());
 
-
-    // ----- GLUT ------------------------------------------------------------
     glutInit(&argc,argv); glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE); glutInitWindowSize(winX,winY); glutCreateWindow("FluidToy – Stable Fluids Demo");
     glutDisplayFunc(display); glutIdleFunc(idle); glutKeyboardFunc(key); glutMouseFunc(mouse); glutMotionFunc(motion);
     
-    // Updated help text
-    std::puts("\nControls:\n"
+    puts("\nControls:\n"
               "  Left-drag   : add velocity (if not on object)\n"
               "  Left-click-drag object: move object\n"
               "  Left-drag bottom slider: change delta time\n"
-              "  Right-click : add density\n"
+              "  Right-click on selected object: rotate object\n"
+              "  Middle-click (or Right-click on empty space): add density\n"
               "  1           : add a fixed solid block\n"
-              "  2           : add a movable solid block\n"
+              "  2           : add a movable solid rectangle\n"
+              "  3           : add a movable solid disk\n"
               "  v           : toggle velocity / density display\n"
               "  c           : clear simulation and obstacles\n"
               "  q           : quit\n");

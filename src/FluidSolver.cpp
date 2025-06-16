@@ -78,8 +78,6 @@ void FluidSolver::confine(float* u, float* v, float* w) {
     float h2 = 2.0f/N;
 
     for(int i=1;i<=N;++i)for(int j=1;j<=N;++j){
-        // We only need to calculate the vorticity in the around the z-axis, as 
-        // the rotations for x- and y- axis are 0 in a 2D simulation.
         w[IX(i,j,N)]  = v[IX(i+1,j,N)] - v[IX(i-1,j,N)] - u[IX(i,j+1,N)] + u[IX(i,j-1,N)];
         w[IX(i,j,N)] /= h2;
     }
@@ -112,7 +110,6 @@ void FluidSolver::step(){
          *u0=g->m_uPrev.data(), *v0=g->m_vPrev.data(),
          *dens=g->dens(), *dens0=g->m_densPrev.data();
     
-
     addSource(N, u, u0, dt);
     addSource(N, v, v0, dt);
     addSource(N, dens, dens0, dt);
@@ -138,6 +135,5 @@ void FluidSolver::step(){
         b->applyTo(*g);
     }
 
-    // Let objects advance through time (mainly for rotation)
-    m_obstacleManager->update(dt);
+    // The call to m_obstacleManager->update(dt) is now handled in main.cpp's idle() loop
 }

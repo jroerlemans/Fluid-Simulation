@@ -1,32 +1,27 @@
 #pragma once
-#include "Obstacle.h"
+#include "MovableObstacle.h" // Inherit from the new base class
+#include <vector>
 
-class MovableRectObstacle : public Obstacle {
+class MovableRectObstacle : public MovableObstacle {
 public:
     MovableRectObstacle(int x, int y, int w, int h, int gridN);
     ~MovableRectObstacle() override = default;
 
-    // Obstacle interface
+    // --- Obstacle Interface ---
     void apply(FluidGrid& grid) const override;
     void draw() const override;
-    void update(float dt) override;
 
-    // Movable-specific methods
-    void updatePosition(int newX, int newY);
-    void setVelocity(float vx, float vy);
-    void setAngularVelocity(float degreesPerSecond);
-    bool contains(int x, int y) const;
-    void setSelected(bool selected);
-
+    // --- MovableObstacle Interface ---
+    void updatePosition(int newX, int newY); // For legacy mouse dragging
+    bool contains(int x, int y) const override;
+    
+    // --- Rect-specific methods for collision detection ---
+    void getVertices(std::vector<Vec2>& vertices) const;
+    Vec2 getCenter() const;
+    int getWidth() const { return m_w; }
+    int getHeight() const { return m_h; }
 
 private:
-    int m_x, m_y, m_w, m_h;
+    int m_w, m_h;
     int m_gridN;
-
-    float m_angle, m_angularVelocity; // Angle is measured from the center of the body (degrees)
-    float m_vx = 0.f, m_vy = 0.f;     // Object's velocity in grid cells/s
-    bool m_isSelected = false;
-
-
-    bool pointInsideRect(int x, int y) const;
 };
