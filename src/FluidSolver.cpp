@@ -5,8 +5,8 @@
 #include <algorithm> 
 #include <iostream>
 
-FluidSolver::FluidSolver(FluidGrid& grid, ObstacleManager* manager, float dt_,float diff_,float visc_, float vort_)
-    :g(&grid),m_obstacleManager(manager),dt(dt_),diff(diff_),visc(visc_),vort(vort_){} 
+FluidSolver::FluidSolver(FluidGrid& grid, ObstacleManager* manager)
+    :g(&grid),m_obstacleManager(manager){} 
 
 void FluidSolver::addBoundary(SolidBoundary* b) {
     m_boundaries.push_back(b);

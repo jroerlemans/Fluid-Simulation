@@ -8,7 +8,7 @@
 
 class FluidSolver {
 public:
-    FluidSolver(FluidGrid& grid, ObstacleManager* manager, float dt,float diff,float visc,float vort);
+    FluidSolver(FluidGrid& grid, ObstacleManager* manager);
 
     void step();
     void addDensity(int i,int j,float amount);
@@ -18,7 +18,7 @@ public:
     // run-time parameters
     float force  = 5.f;
     float source = 100.f;
-    float dt;
+    float dt, diff, visc, vort;
 
 private:
     void diffuse (int b,float* x,float* x0,float diff);
@@ -30,5 +30,4 @@ private:
     FluidGrid* g;  
     std::vector<SolidBoundary*> m_boundaries;
     ObstacleManager* m_obstacleManager; 
-    float diff, visc, vort;
 };

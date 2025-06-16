@@ -25,10 +25,14 @@ static float cmd_source = 100.f;
 // --- globals ---
 static FluidGrid   grid(N);
 static std::unique_ptr<ObstacleManager> obstacleManager;
-static FluidSolver solver(grid, nullptr, dt, diff, visc, vort);
+static FluidSolver solver(grid, nullptr);
 
+// --- Window sizes ---
+static int simulation_size = 512; // Size of the simulation (in pixels)
+static int ui_size = 200; // Size of the UI panel (in pixels)
 static bool showVel = false;
-static int  winX = 512, winY = 512;
+static int  winX = simulation_size + ui_size;
+static int  winY = simulation_size;
 static int  mouseDown[3] = {0,0,0};
 static int  omx, omy, mx, my;
 
@@ -43,6 +47,44 @@ const float slider_y = 30.f;
 const float slider_w = 200.f;
 const float dt_min = 0.01f;
 const float dt_max = 0.4f;
+
+// --- UI Globals for slider --- 
+const int slider_width = 100;
+const int handle_size = 15;
+const int padding = 50;
+const int spacing = 50;
+static int slider_idx = -1;
+
+typedef struct {
+    float dt; 
+    float diff;
+    float visc;
+    float vort;
+    float N;
+} FluidParameters;
+
+FluidParameters params = {0.1f, 0.f, 0.f, 5.f, 64};
+
+typedef enum {
+    INT,
+    FLOAT
+} Type;
+
+typedef struct {
+    float min_value;
+    float max_value;
+    float* value;
+    const char* label;
+    Type type;
+} Slider;
+
+Slider sliders[] = {
+    {0.01f, 0.4f, &params.dt, "Delta time", FLOAT},
+    {0.f, .01f, &params.diff, "Diffusion", FLOAT},
+    {0.f, .01f, &params.visc, "Viscosity", FLOAT},
+    {0.f, 20.f, &params.vort, "Vorticity", FLOAT},
+    {5, 1024, &params.N, "N", FLOAT},
+};
 
 // --- drawing helpers ---
 static void drawVelocity(){
@@ -59,6 +101,8 @@ static void drawDensity(){
 }
 
 static void drawUI() {
+    
+
     glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, winX, 0, winY);
     glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
 
@@ -68,7 +112,7 @@ static void drawUI() {
     glColor3f(0.9f, 0.9f, 0.9f); glBegin(GL_QUADS);
     glVertex2f(handle_x - 4, slider_y - 8); glVertex2f(handle_x + 4, slider_y - 8); glVertex2f(handle_x + 4, slider_y + 8); glVertex2f(handle_x - 4, slider_y + 8); glEnd();
 
-    char dt_text[64]; sprintf(dt_text, "Delta Time (dt): %.3f", dt);
+    char dt_text[64]; sprintf(dt_text, " Time (dt): %.3f", dt);
     glColor3f(1.0f, 1.0f, 1.0f); glRasterPos2f(slider_x, slider_y + 15);
     for (const char* c = dt_text; *c != '\0'; ++c) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c); }
     
@@ -86,17 +130,69 @@ static void getFromUI(){
     omx = mx; omy = my;
 }
 
-static void display(){ 
-    glClear(GL_COLOR_BUFFER_BIT);
+static void display_ui() {
+    glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, ui_size, 0, winY);
+    glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+
+    int n_sliders = sizeof(sliders) / sizeof(sliders[0]);
+
+    for (int i = 0; i < n_sliders; i++) {
+        Slider* slider = &sliders[i];
+
+        int x = padding;
+        int y = padding + spacing * i;
+
+        glColor3f(0.4f, 0.4f, 0.4f); glBegin(GL_LINES); glVertex2f(x, y); glVertex2f(x + slider_width, y); glEnd();
+
+        int handle_position = (int) (slider_width * (*slider->value - slider->min_value) / (slider->max_value - slider->min_value));
+
+        glPointSize(handle_size);
+        glBegin(GL_POINTS);
+        glColor3f(1, 1, 1);
+        glVertex2f(x + handle_position, y);
+        glEnd();
+        
+        char label[64];
+        switch (slider->type) {
+            case INT:
+                sprintf(label, "%s: %3d", slider->label, *slider->value);
+                break;
+            case FLOAT:
+                sprintf(label, "%s: %.3f", slider->label, *slider->value);
+                break;
+        }
+
+        glColor3f(1.0f, 1.0f, 1.0f); glRasterPos2f(x, y + 15);
+        for (const char* c = label; *c != '\0'; ++c) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c); }
+    }
+    
+    glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
+}
+
+static void display_simulation() {
     glMatrixMode(GL_PROJECTION); glLoadIdentity(); gluOrtho2D(0, 1, 0, 1);
     if(showVel) drawVelocity(); else drawDensity(); 
     if(obstacleManager) obstacleManager->draw(); 
-    drawUI();
+}
+
+static void display(){ 
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glViewport(0, 0, simulation_size, simulation_size);
+    display_simulation();
+
+    glViewport(simulation_size, 0, ui_size, winY);
+    display_ui();
+
     glutSwapBuffers(); 
 }
 
 static void idle(){ 
-    solver.dt = dt;
+    solver.dt = params.dt;
+    solver.diff = params.diff;
+    solver.visc = params.visc;
+    solver.vort = params.vort;
+
     getFromUI(); 
 
     if (obstacleManager) {
@@ -131,8 +227,34 @@ static void key(unsigned char c, int x, int y){
     }
 }
 
+
+// if the point is inside a slider handle, this returns the index of slider
+// else it returns -1
+static int slider_index(int x, int y) {
+    int n_sliders = sizeof(sliders) / sizeof(sliders[0]);
+
+    for (int i = 0; i < n_sliders; i++) {
+        Slider* slider = &sliders[i];
+        
+        int handle_position = (int) (slider_width * (*slider->value - slider->min_value) / (slider->max_value - slider->min_value));
+        int handle_x = simulation_size + padding + handle_position;
+        int handle_y = padding + i*spacing;
+
+        if (2*std::abs(handle_x - x) < handle_size && 2*std::abs(handle_y - y) < handle_size) {
+            return i;
+        }
+    }
+        
+    return -1;
+}
+
 static void mouse(int button, int state, int x, int y) {
     omx = mx = x; omy = my = y;
+
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        slider_idx = slider_index(x, winY - y);
+    }
+
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         if (x >= slider_x - 5 && x <= slider_x + slider_w + 5 && (winY - y) >= slider_y - 10 && (winY - y) <= slider_y + 10) {
             is_dragging_slider = true;
@@ -165,6 +287,34 @@ static void mouse(int button, int state, int x, int y) {
 }
 
 static void motion(int x, int y) {
+    // Convert to x-coordinate to slider coordinate
+    int slider_position = x - simulation_size - padding;
+
+    if (slider_idx != -1) {
+        slider_position = std::max(0, std::min(slider_position, slider_width));
+        Slider* slider = &sliders[slider_idx];
+        
+        switch (slider->type) {
+            case INT:
+                *slider->value = (int) (slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value));
+
+                if (slider->label == "N") {
+                    N = params.N;
+                    obstacleManager.reset(new ObstacleManager(N));
+                    grid = FluidGrid(N); 
+                    solver = FluidSolver(grid, obstacleManager.get());
+                    solver.force = cmd_force;
+                    solver.source = cmd_source;
+                    solver.addBoundary(obstacleManager.get());
+                }
+
+                break;
+            case FLOAT:
+                *slider->value = slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value);
+                break;
+        }
+    }
+
     if (is_dragging_slider) {
         float new_dt = dt_min + ((x - slider_x) / slider_w) * (dt_max - dt_min);
         dt = std::max(dt_min, std::min(dt_max, new_dt));
@@ -192,7 +342,7 @@ int main(int argc,char** argv){
 
     obstacleManager.reset(new ObstacleManager(N));
     grid = FluidGrid(N); 
-    solver = FluidSolver(grid, obstacleManager.get(), dt, diff, visc, vort);
+    solver = FluidSolver(grid, obstacleManager.get());
     solver.force = cmd_force;
     solver.source = cmd_source;
     solver.addBoundary(obstacleManager.get());
