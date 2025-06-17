@@ -16,6 +16,10 @@ void FluidSolver::addBoundary(SolidBoundary* b) {
 void FluidSolver::addDensity(int i,int j,float amount){
     g->dens()[IX(i,j,g->size())]+=amount;
 }
+// New method to add temperature
+void FluidSolver::addTemperature(int i, int j, float amount) {
+    g->temp()[IX(i, j, g->size())] += amount;
+}
 void FluidSolver::addVelocity(int i,int j,float uu,float vv){
     int N=g->size();
     g->u()[IX(i,j,N)]+=uu;
@@ -103,21 +107,51 @@ void FluidSolver::confine(float* u, float* v, float* w) {
     }
 }
 
+// New buoyancy force method
+void FluidSolver::applyBuoyancy(float* v, float* temp) {
+    int N = g->size();
+    float ambient_temp = 0.f; // Assume ambient temperature is 0
+    
+    // This is a force, so it should be scaled by dt
+    float scale = dt * buoyancy_factor;
+
+    if (scale == 0) return;
+
+    for (int i = 1; i <= N; ++i) {
+        for (int j = 1; j <= N; ++j) {
+            // We only need to affect vertical velocity 'v'
+            // Positive temperature -> upward force
+            if (temp[IX(i, j, N)] > ambient_temp) {
+                v[IX(i, j, N)] += scale * (temp[IX(i, j, N)] - ambient_temp);
+            }
+        }
+    }
+}
+
 // ===== main solver tick ====================================================
 void FluidSolver::step(){
     int N=g->size();
     auto *u=g->u(), *v=g->v(), *w=g->vort(),
+         *temp=g->temp(), // New
          *u0=g->m_uPrev.data(), *v0=g->m_vPrev.data(),
-         *dens=g->dens(), *dens0=g->m_densPrev.data();
+         *dens=g->dens(), *dens0=g->m_densPrev.data(),
+         *temp0=g->m_tempPrev.data(); // New
     
     addSource(N, u, u0, dt);
     addSource(N, v, v0, dt);
     addSource(N, dens, dens0, dt);
+    addSource(N, temp, temp0, dt); // New
+
+    // --- APPLY FORCES ---
+    // Apply buoyancy force if toggled on
+    if (buoyancy_on) {
+        applyBuoyancy(v, temp);
+    }
 
     // Vorticity confinement
     confine(u, v, w);
 
-    // velocity
+    // --- SOLVE VELOCITY ---
     std::swap(u0, u); diffuse (1,u,u0,visc);
     std::swap(v0, v); diffuse (2,v,v0,visc);
     project (u,v,u0,v0);
@@ -127,8 +161,14 @@ void FluidSolver::step(){
     advect  (2,v,v0,u0,v0);
     project (u,v,u0,v0);
 
+    // --- SOLVE SCALARS ---
+    // Density
     std::swap(dens0, dens); diffuse (0,dens,dens0,diff);
     std::swap(dens0, dens); advect  (0,dens,dens0,u,v);
+    
+    // Temperature (behaves just like density)
+    std::swap(temp0, temp); diffuse (0,temp,temp0,temp_diffusivity);
+    std::swap(temp0, temp); advect  (0,temp,temp0,u,v);
 
     // Apply all solid boundary conditions at the end of the step
     for (auto& b : m_boundaries) {

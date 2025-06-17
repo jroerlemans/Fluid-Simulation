@@ -12,6 +12,7 @@ public:
 
     void step();
     void addDensity(int i,int j,float amount);
+    void addTemperature(int i, int j, float amount); // New
     void addVelocity(int i,int j,float u,float v);
     void addBoundary(SolidBoundary* b);
 
@@ -20,12 +21,18 @@ public:
     float source = 100.f;
     float dt;
 
+    // New buoyancy parameters
+    bool  buoyancy_on = true;
+    float buoyancy_factor = 1.0f;
+    float temp_diffusivity = 0.f;
+
 private:
     void diffuse (int b,float* x,float* x0,float diff);
     void project (float* u,float* v,float* p,float* div);
     void advect  (int b,float* d,float* d0,float* u,float* v);
 
     void confine (float* u, float* v, float* w);
+    void applyBuoyancy(float* v, float* temp); // New
 
     FluidGrid* g;  
     std::vector<SolidBoundary*> m_boundaries;

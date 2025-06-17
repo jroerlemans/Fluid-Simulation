@@ -33,9 +33,10 @@ static int  mouseDown[3] = {0,0,0};
 static int  omx, omy, mx, my;
 
 // --- Interaction globals ---
-static MovableObstacle* selected_obstacle = nullptr; // Changed to base class pointer
+static MovableObstacle* selected_obstacle = nullptr;
 static bool is_dragging_object = false;
 static bool is_dragging_slider = false;
+static int current_source_type = 0; // NEW: 0 for density, 1 for temperature
 
 // --- UI Globals for Slider ---
 const float slider_x = 50.f;
@@ -53,8 +54,17 @@ static void drawVelocity(){
 static void drawDensity(){
     int N = grid.size(); float h = 1.0f/N; glBegin(GL_QUADS);
     for(int i=0; i<N; i++){ float x = i*h; for(int j=0; j<N; j++){ float y = j*h;
-            float d00 = grid.dens()[IX(i,j,N)], d10 = grid.dens()[IX(i+1,j,N)], d11 = grid.dens()[IX(i+1,j+1,N)], d01 = grid.dens()[IX(i,j+1,N)];
-            glColor3f(d00,d00,d00); glVertex2f(x,y); glColor3f(d10,d10,d10); glVertex2f(x+h,y); glColor3f(d11,d11,d11); glVertex2f(x+h,y+h); glColor3f(d01,d01,d01); glVertex2f(x,y+h);
+            // Get density and temperature at all four corners of the cell
+            float d00 = grid.dens()[IX(i,j,N)],     t00 = grid.temp()[IX(i,j,N)];
+            float d10 = grid.dens()[IX(i+1,j,N)],   t10 = grid.temp()[IX(i+1,j,N)];
+            float d11 = grid.dens()[IX(i+1,j+1,N)], t11 = grid.temp()[IX(i+1,j+1,N)];
+            float d01 = grid.dens()[IX(i,j+1,N)],   t01 = grid.temp()[IX(i,j+1,N)];
+            
+            // Colorize by temperature: hot = more red/yellow, cool = more white/blue
+            glColor3f(std::min(1.f, d00 + t00*0.5f), std::min(1.f, d00), std::max(0.f, d00 - t00*0.5f)); glVertex2f(x,y);
+            glColor3f(std::min(1.f, d10 + t10*0.5f), std::min(1.f, d10), std::max(0.f, d10 - t10*0.5f)); glVertex2f(x+h,y);
+            glColor3f(std::min(1.f, d11 + t11*0.5f), std::min(1.f, d11), std::max(0.f, d11 - t11*0.5f)); glVertex2f(x+h,y+h);
+            glColor3f(std::min(1.f, d01 + t01*0.5f), std::min(1.f, d01), std::max(0.f, d01 - t01*0.5f)); glVertex2f(x,y+h);
     }} glEnd();
 }
 
@@ -75,14 +85,28 @@ static void drawUI() {
     glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
 }
 
+// MODIFIED: This function no longer calls glutGetModifiers()
 static void getFromUI(){
-    std::fill(grid.m_uPrev.begin(), grid.m_uPrev.end(), 0.f); std::fill(grid.m_vPrev.begin(), grid.m_vPrev.end(), 0.f); std::fill(grid.m_densPrev.begin(), grid.m_densPrev.end(), 0.f);
+    // Clear previous-step source arrays before adding new ones
+    std::fill(grid.m_uPrev.begin(), grid.m_uPrev.end(), 0.f); 
+    std::fill(grid.m_vPrev.begin(), grid.m_vPrev.end(), 0.f); 
+    std::fill(grid.m_densPrev.begin(), grid.m_densPrev.end(), 0.f); 
+    std::fill(grid.m_tempPrev.begin(), grid.m_tempPrev.end(), 0.f);
+    
     if(!mouseDown[0] && !mouseDown[2]) return;
     if(is_dragging_object || is_dragging_slider) return;
     int i = int(( mx/float(winX))*N+1), j = int(((winY-my)/float(winY))*N+1);
     if(i<1||i>N||j<1||j>N) return;
+
     if(mouseDown[0]){ solver.addVelocity(i, j, cmd_force*(mx-omx), cmd_force*(omy-my)); }
-    if(mouseDown[2]){ solver.addDensity(i, j, cmd_source); }
+    if(mouseDown[2]){ // Right-click (corresponds to index 2)
+        // Check the mode we stored in the mouse() callback
+        if (current_source_type == 1) { // 1 means temperature
+            solver.addTemperature(i, j, cmd_source * 2.0f);
+        } else { // 0 means density
+            solver.addDensity(i, j, cmd_source);
+        }
+    }
     omx = mx; omy = my;
 }
 
@@ -117,6 +141,10 @@ static void key(unsigned char c, int x, int y){
             grid.reset(); if (obstacleManager) obstacleManager->clear();
             selected_obstacle = nullptr; is_dragging_object = false;
             break;
+        case 'b': case 'B':
+            solver.buoyancy_on = !solver.buoyancy_on;
+            printf("Buoyancy %s\n", solver.buoyancy_on ? "ON" : "OFF");
+            break;
         case 'v': case 'V': showVel=!showVel; break;
         case 'q': case 'Q': std::exit(0); break;
         case '1': 
@@ -125,12 +153,13 @@ static void key(unsigned char c, int x, int y){
         case '2':
             if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,16); 
             break;
-        case '3': // New binding for disks
+        case '3':
             if (obstacleManager) obstacleManager->addDisk(i, j, 6);
             break;
     }
 }
 
+// MODIFIED: This function now sets the source type
 static void mouse(int button, int state, int x, int y) {
     omx = mx = x; omy = my = y;
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -139,7 +168,7 @@ static void mouse(int button, int state, int x, int y) {
         } else {
             int i = int((mx / float(winX)) * N + 1);
             int j = int(((winY - my) / float(winY)) * N + 1);
-            selected_obstacle = obstacleManager->findMovableAt(i, j); // This now returns MovableObstacle*
+            selected_obstacle = obstacleManager->findMovableAt(i, j);
             if (selected_obstacle) {
                 is_dragging_object = true;
                 selected_obstacle->setSelected(true);
@@ -154,6 +183,16 @@ static void mouse(int button, int state, int x, int y) {
         is_dragging_object = false;
         is_dragging_slider = false;
     } 
+
+    // MODIFIED: Set source type on right-click down, inside the input callback
+    if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
+        // This is a safe place to call glutGetModifiers()
+        if (glutGetModifiers() & GLUT_ACTIVE_SHIFT) {
+            current_source_type = 1; // Temperature mode
+        } else {
+            current_source_type = 0; // Density mode
+        }
+    }
 
     if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN && selected_obstacle) {
          selected_obstacle->setAngularVelocity(90.f);
@@ -205,10 +244,12 @@ int main(int argc,char** argv){
               "  Left-click-drag object: move object\n"
               "  Left-drag bottom slider: change delta time\n"
               "  Right-click on selected object: rotate object\n"
-              "  Middle-click (or Right-click on empty space): add density\n"
+              "  Right-click : add density\n"
+              "  Shift + Right-click : add hot temperature\n"
               "  1           : add a fixed solid block\n"
               "  2           : add a movable solid rectangle\n"
               "  3           : add a movable solid disk\n"
+              "  b           : toggle buoyancy on/off\n"
               "  v           : toggle velocity / density display\n"
               "  c           : clear simulation and obstacles\n"
               "  q           : quit\n");
