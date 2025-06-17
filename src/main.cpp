@@ -36,7 +36,7 @@ static int  omx, omy, mx, my;
 static MovableObstacle* selected_obstacle = nullptr;
 static bool is_dragging_object = false;
 static bool is_dragging_slider = false;
-static int current_source_type = 0; // NEW: 0 for density, 1 for temperature
+static int current_source_type = 0;
 
 // --- UI Globals for Slider ---
 const float slider_x = 50.f;
@@ -54,13 +54,11 @@ static void drawVelocity(){
 static void drawDensity(){
     int N = grid.size(); float h = 1.0f/N; glBegin(GL_QUADS);
     for(int i=0; i<N; i++){ float x = i*h; for(int j=0; j<N; j++){ float y = j*h;
-            // Get density and temperature at all four corners of the cell
             float d00 = grid.dens()[IX(i,j,N)],     t00 = grid.temp()[IX(i,j,N)];
             float d10 = grid.dens()[IX(i+1,j,N)],   t10 = grid.temp()[IX(i+1,j,N)];
             float d11 = grid.dens()[IX(i+1,j+1,N)], t11 = grid.temp()[IX(i+1,j+1,N)];
             float d01 = grid.dens()[IX(i,j+1,N)],   t01 = grid.temp()[IX(i,j+1,N)];
             
-            // Colorize by temperature: hot = more red/yellow, cool = more white/blue
             glColor3f(std::min(1.f, d00 + t00*0.5f), std::min(1.f, d00), std::max(0.f, d00 - t00*0.5f)); glVertex2f(x,y);
             glColor3f(std::min(1.f, d10 + t10*0.5f), std::min(1.f, d10), std::max(0.f, d10 - t10*0.5f)); glVertex2f(x+h,y);
             glColor3f(std::min(1.f, d11 + t11*0.5f), std::min(1.f, d11), std::max(0.f, d11 - t11*0.5f)); glVertex2f(x+h,y+h);
@@ -85,9 +83,7 @@ static void drawUI() {
     glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
 }
 
-// MODIFIED: This function no longer calls glutGetModifiers()
 static void getFromUI(){
-    // Clear previous-step source arrays before adding new ones
     std::fill(grid.m_uPrev.begin(), grid.m_uPrev.end(), 0.f); 
     std::fill(grid.m_vPrev.begin(), grid.m_vPrev.end(), 0.f); 
     std::fill(grid.m_densPrev.begin(), grid.m_densPrev.end(), 0.f); 
@@ -98,13 +94,18 @@ static void getFromUI(){
     int i = int(( mx/float(winX))*N+1), j = int(((winY-my)/float(winY))*N+1);
     if(i<1||i>N||j<1||j>N) return;
 
-    if(mouseDown[0]){ solver.addVelocity(i, j, cmd_force*(mx-omx), cmd_force*(omy-my)); }
-    if(mouseDown[2]){ // Right-click (corresponds to index 2)
-        // Check the mode we stored in the mouse() callback
-        if (current_source_type == 1) { // 1 means temperature
-            solver.addTemperature(i, j, cmd_source * 2.0f);
-        } else { // 0 means density
-            solver.addDensity(i, j, cmd_source);
+    if(mouseDown[0]){ 
+        // FIX: Scale the added velocity by dt to make it consistent
+        float force_x = cmd_force * (mx - omx) * dt;
+        float force_y = cmd_force * (omy - my) * dt;
+        solver.addVelocity(i, j, force_x, force_y); 
+    }
+    if(mouseDown[2]){
+        // FIX: Scale the added sources by dt
+        if (current_source_type == 1) { 
+            solver.addTemperature(i, j, cmd_source * 2.0f * dt);
+        } else {
+            solver.addDensity(i, j, cmd_source * dt);
         }
     }
     omx = mx; omy = my;
@@ -159,7 +160,6 @@ static void key(unsigned char c, int x, int y){
     }
 }
 
-// MODIFIED: This function now sets the source type
 static void mouse(int button, int state, int x, int y) {
     omx = mx = x; omy = my = y;
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -184,13 +184,11 @@ static void mouse(int button, int state, int x, int y) {
         is_dragging_slider = false;
     } 
 
-    // MODIFIED: Set source type on right-click down, inside the input callback
     if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
-        // This is a safe place to call glutGetModifiers()
         if (glutGetModifiers() & GLUT_ACTIVE_SHIFT) {
-            current_source_type = 1; // Temperature mode
+            current_source_type = 1;
         } else {
-            current_source_type = 0; // Density mode
+            current_source_type = 0;
         }
     }
 
@@ -214,9 +212,10 @@ static void motion(int x, int y) {
         
         selected_obstacle->updatePosition(Vec2(new_i, new_j));
         
-        float vel_scale = dt > 0 ? 1.0f / dt : 0.f;
-        float vx = (x - mx) * (N / float(winX)) * vel_scale;
-        float vy = (my - y) * (N / float(winY)) * vel_scale;
+        // FIX: Remove the problematic 1/dt scaling. Use a simple constant factor instead.
+        const float drag_vel_scale = 1.0f; 
+        float vx = (x - mx) * (N / float(winX)) * drag_vel_scale;
+        float vy = (my - y) * (N / float(winY)) * drag_vel_scale;
         selected_obstacle->setVelocity(vx, vy);
     }
     mx = x; 
