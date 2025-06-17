@@ -235,8 +235,8 @@ static void idle(){
 
 static void key(unsigned char c, int x, int y){
     mx = x; my = y;
-    int i = int((mx / float(winX)) * N + 1);
-    int j = int(((winY - my) / float(winY)) * N + 1);
+    int i = int((mx / float(simulation_size)) * N + 1);
+    int j = int((my / float(simulation_size)) * N + 1);
     switch(c){
         case 'c': case 'C':
             grid.reset(); if (obstacleManager) obstacleManager->clear();
@@ -350,8 +350,8 @@ static void motion_simulation(int x, int y) {
         selected_obstacle->updatePosition(Vec2(new_i, new_j));
         
         const float drag_vel_scale = 1.0f; 
-        float vx = (x - mx) * (N / float(simulation_size)) * vel_scale;
-        float vy = (y - my) * (N / float(simulation_size)) * vel_scale;
+        float vx = (x - mx) * (N / float(simulation_size)) * drag_vel_scale;
+        float vy = (y - my) * (N / float(simulation_size)) * drag_vel_scale;
         selected_obstacle->setVelocity(vx, vy);
     }
 
