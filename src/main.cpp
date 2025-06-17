@@ -11,6 +11,10 @@
 #include "MovableObstacle.h" // Use the new base class
 #include "Vec2.h"
 
+void print(const char* str) {
+    std::cout << str << std::endl;
+}
+
 // --- runtime-tunable params ---
 static float dt     = 0.1f; 
 static int   N      = 64;
@@ -45,7 +49,7 @@ static bool is_dragging_slider = false;
 const float slider_x = 50.f;
 const float slider_y = 30.f;
 const float slider_w = 200.f;
-const float dt_min = 0.01f;
+const float dt_min = 0.002f;
 const float dt_max = 0.4f;
 
 // --- UI Globals for slider --- 
@@ -123,9 +127,9 @@ static void getFromUI(){
     std::fill(grid.m_uPrev.begin(), grid.m_uPrev.end(), 0.f); std::fill(grid.m_vPrev.begin(), grid.m_vPrev.end(), 0.f); std::fill(grid.m_densPrev.begin(), grid.m_densPrev.end(), 0.f);
     if(!mouseDown[0] && !mouseDown[2]) return;
     if(is_dragging_object || is_dragging_slider) return;
-    int i = int(( mx/float(winX))*N+1), j = int(((winY-my)/float(winY))*N+1);
+    int i = int(( mx/float(simulation_size))*N+1), j = int((my/float(simulation_size))*N+1);
     if(i<1||i>N||j<1||j>N) return;
-    if(mouseDown[0]){ solver.addVelocity(i, j, cmd_force*(mx-omx), cmd_force*(omy-my)); }
+    if(mouseDown[0]){ solver.addVelocity(i, j, cmd_force*(mx-omx), cmd_force*(my-omy)); }
     if(mouseDown[2]){ solver.addDensity(i, j, cmd_source); }
     omx = mx; omy = my;
 }
@@ -237,7 +241,7 @@ static int slider_index(int x, int y) {
         Slider* slider = &sliders[i];
         
         int handle_position = (int) (slider_width * (*slider->value - slider->min_value) / (slider->max_value - slider->min_value));
-        int handle_x = simulation_size + padding + handle_position;
+        int handle_x = padding + handle_position;
         int handle_y = padding + i*spacing;
 
         if (2*std::abs(handle_x - x) < handle_size && 2*std::abs(handle_y - y) < handle_size) {
@@ -248,19 +252,16 @@ static int slider_index(int x, int y) {
     return -1;
 }
 
-static void mouse(int button, int state, int x, int y) {
+static void mouse_simulation(int button, int state, int x, int y) {
     omx = mx = x; omy = my = y;
-
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        slider_idx = slider_index(x, winY - y);
-    }
 
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         if (x >= slider_x - 5 && x <= slider_x + slider_w + 5 && (winY - y) >= slider_y - 10 && (winY - y) <= slider_y + 10) {
             is_dragging_slider = true;
         } else {
-            int i = int((mx / float(winX)) * N + 1);
-            int j = int(((winY - my) / float(winY)) * N + 1);
+            int i = int((mx / float(simulation_size)) * N + 1);
+            int j = int((my / float(simulation_size)) * N + 1);
+
             selected_obstacle = obstacleManager->findMovableAt(i, j); // This now returns MovableObstacle*
             if (selected_obstacle) {
                 is_dragging_object = true;
@@ -286,9 +287,44 @@ static void mouse(int button, int state, int x, int y) {
     mouseDown[button] = (state == GLUT_DOWN);
 }
 
-static void motion(int x, int y) {
+static void mouse_ui(int button, int state, int x, int y) {
+    if (state == GLUT_DOWN) {
+        slider_idx = slider_index(x, y);
+    }
+}
+
+static void mouse(int button, int state, int x, int y) {
+    if (x < simulation_size) {
+        // We invert the y-coordinate so that it matches the opengl coordinate system
+        mouse_simulation(button, state, x, winY - y);
+    } else {
+        mouse_ui(button, state, x - simulation_size, winY - y);
+    }
+}
+
+static void motion_simulation(int x, int y) {
+    if (is_dragging_slider) {
+        float new_dt = dt_min + ((x - slider_x) / slider_w) * (dt_max - dt_min);
+        dt = std::max(dt_min, std::min(dt_max, new_dt));
+    } else if (is_dragging_object && selected_obstacle) {
+        float new_i = (x / float(simulation_size)) * N;
+        float new_j = (y / float(simulation_size)) * N;
+        
+        selected_obstacle->updatePosition(Vec2(new_i, new_j));
+        
+        float vel_scale = dt > 0 ? 1.0f / dt : 0.f;
+        float vx = (x - mx) * (N / float(simulation_size)) * vel_scale;
+        float vy = (y - my) * (N / float(simulation_size)) * vel_scale;
+        selected_obstacle->setVelocity(vx, vy);
+    }
+
+    mx = x; 
+    my = y;
+}
+
+static void motion_ui(int x, int y) {
     // Convert to x-coordinate to slider coordinate
-    int slider_position = x - simulation_size - padding;
+    int slider_position = x - padding;
 
     if (slider_idx != -1) {
         slider_position = std::max(0, std::min(slider_position, slider_width));
@@ -298,8 +334,12 @@ static void motion(int x, int y) {
             case INT:
                 *slider->value = (int) (slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value));
 
+                break;
+            case FLOAT:
+                *slider->value = slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value);
+
                 if (slider->label == "N") {
-                    N = params.N;
+                    N = (int) params.N;
                     obstacleManager.reset(new ObstacleManager(N));
                     grid = FluidGrid(N); 
                     solver = FluidSolver(grid, obstacleManager.get());
@@ -307,31 +347,18 @@ static void motion(int x, int y) {
                     solver.source = cmd_source;
                     solver.addBoundary(obstacleManager.get());
                 }
-
-                break;
-            case FLOAT:
-                *slider->value = slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value);
                 break;
         }
     }
+}
 
-    if (is_dragging_slider) {
-        float new_dt = dt_min + ((x - slider_x) / slider_w) * (dt_max - dt_min);
-        dt = std::max(dt_min, std::min(dt_max, new_dt));
+static void motion(int x, int y) {
+    if (x < simulation_size) {
+        // We invert the y-coordinate so that it matches the opengl coordinate system
+        motion_simulation(x, winY - y);
+    } else {
+        motion_ui(x - simulation_size, winY - y);
     }
-    else if (is_dragging_object && selected_obstacle) {
-        float new_i = (x / float(winX)) * N;
-        float new_j = ((winY - y) / float(winY)) * N;
-        
-        selected_obstacle->updatePosition(Vec2(new_i, new_j));
-        
-        float vel_scale = dt > 0 ? 1.0f / dt : 0.f;
-        float vx = (x - mx) * (N / float(winX)) * vel_scale;
-        float vy = (my - y) * (N / float(winY)) * vel_scale;
-        selected_obstacle->setVelocity(vx, vy);
-    }
-    mx = x; 
-    my = y;
 }
 
 int main(int argc,char** argv){
