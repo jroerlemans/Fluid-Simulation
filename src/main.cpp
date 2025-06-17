@@ -187,7 +187,11 @@ static void display_ui() {
                 sprintf(label, "%s: %3d", slider->label, *slider->value);
                 break;
             case FLOAT:
-                sprintf(label, "%s: %.3f", slider->label, *slider->value);
+                if (i == 4) {
+                    sprintf(label, "%s: %3d", slider->label, (int) *slider->value);
+                } else {
+                    sprintf(label, "%s: %.3f", slider->label, *slider->value);
+                }
                 break;
         }
 
@@ -234,7 +238,7 @@ static void idle(){
 }
 
 static void key(unsigned char c, int x, int y){
-    mx = x; my = y;
+    mx = x; my = winY - y;
     int i = int((mx / float(simulation_size)) * N + 1);
     int j = int((my / float(simulation_size)) * N + 1);
     switch(c){
@@ -375,7 +379,7 @@ static void motion_ui(int x, int y) {
             case FLOAT:
                 *slider->value = slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value);
 
-                if (slider->label == "N") {
+                if (slider_idx == 4) {
                     N = (int) params.N;
                     obstacleManager.reset(new ObstacleManager(N));
                     grid = FluidGrid(N); 

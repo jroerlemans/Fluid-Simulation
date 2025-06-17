@@ -31,6 +31,7 @@ void RectObstacle::draw() const {
     float y1 = (m_y - 1 + m_h) * h;
     
     glBegin(GL_QUADS);
+    glColor3f(0.2,0.5,0.3);
     glVertex2f(x0, y0);
     glVertex2f(x1, y0);
     glVertex2f(x1, y1);
