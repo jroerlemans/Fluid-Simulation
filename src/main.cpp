@@ -264,6 +264,17 @@ static void key(unsigned char c, int x, int y){
     }
 }
 
+static void initialize_walls() {
+    if (!obstacleManager) {
+        return;
+    }
+
+    obstacleManager->addFixedRect(0, -.1, 1, .1);
+    obstacleManager->addFixedRect(-.1, 0, .1, 1);
+    obstacleManager->addFixedRect(1, 0, .1, 1);
+    obstacleManager->addFixedRect(0, 1, 1, .1);
+}
+
 
 // if the point is inside a slider handle, this returns the index of slider
 // else it returns -1
@@ -348,10 +359,11 @@ static void motion_simulation(int x, int y) {
         float new_dt = dt_min + ((x - slider_x) / slider_w) * (dt_max - dt_min);
         dt = std::max(dt_min, std::min(dt_max, new_dt));
     } else if (is_dragging_object && selected_obstacle) {
-        float new_i = (x / float(simulation_size)) * N;
-        float new_j = (y / float(simulation_size)) * N;
+        Vec2 pos = selected_obstacle->getPosition();
+        pos.x += (x - mx) / float(simulation_size) * N;
+        pos.y += (y - my) / float(simulation_size) * N;
         
-        selected_obstacle->updatePosition(Vec2(new_i, new_j));
+        selected_obstacle->updatePosition(pos);
         
         const float drag_vel_scale = 1.0f; 
         float vx = (x - mx) * (N / float(simulation_size)) * drag_vel_scale;
@@ -414,6 +426,8 @@ int main(int argc,char** argv){
     solver.force = cmd_force;
     solver.source = cmd_source;
     solver.addBoundary(obstacleManager.get());
+
+    initialize_walls();
 
     glutInit(&argc,argv); glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE); glutInitWindowSize(winX,winY); glutCreateWindow("FluidToy – Stable Fluids Demo");
     glutDisplayFunc(display); glutIdleFunc(idle); glutKeyboardFunc(key); glutMouseFunc(mouse); glutMotionFunc(motion);
