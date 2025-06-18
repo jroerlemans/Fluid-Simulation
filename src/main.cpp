@@ -314,7 +314,6 @@ static void mouse_simulation(int button, int state, int x, int y) {
         }
     } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
         if (selected_obstacle) {
-            selected_obstacle->setVelocity(0, 0);
             selected_obstacle->setSelected(false);
             selected_obstacle = nullptr;
         }
@@ -364,10 +363,12 @@ static void motion_simulation(int x, int y) {
         pos.y += (y - my) / float(simulation_size) * N;
         
         selected_obstacle->updatePosition(pos);
+
         
         const float drag_vel_scale = 1.0f; 
-        float vx = (x - mx) * (N / float(simulation_size)) * drag_vel_scale;
-        float vy = (y - my) * (N / float(simulation_size)) * drag_vel_scale;
+        float vx = (x - mx) * (N / (dt*float(simulation_size))) * drag_vel_scale;
+        float vy = (y - my) * (N / (dt*float(simulation_size))) * drag_vel_scale;
+        std::cout << x - mx <<  " by " << y - my << std::endl;
         selected_obstacle->setVelocity(vx, vy);
     }
 
