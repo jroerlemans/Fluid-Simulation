@@ -70,9 +70,10 @@ typedef struct {
 
 FluidParameters params = {0.1f, 0.f, 0.f, 5.f, 64};
 
+// ******************** FIX 1: Rename enum members ********************
 typedef enum {
-    INT,
-    FLOAT
+    TYPE_INT,
+    TYPE_FLOAT
 } Type;
 
 typedef struct {
@@ -84,12 +85,13 @@ typedef struct {
 } Slider;
 
 Slider sliders[] = {
-    {0.01f, 0.4f, &params.dt, "Delta time", FLOAT},
-    {0.f, .01f, &params.diff, "Diffusion", FLOAT},
-    {0.f, .01f, &params.visc, "Viscosity", FLOAT},
-    {0.f, 20.f, &params.vort, "Vorticity", FLOAT},
-    {5, 1024, &params.N, "N", FLOAT},
+    {0.01f, 0.4f, &params.dt,   "Delta time", TYPE_FLOAT},
+    {0.f,   0.01f, &params.diff, "Diffusion",  TYPE_FLOAT},
+    {0.f,   0.01f, &params.visc, "Viscosity",  TYPE_FLOAT},
+    {0.f,   20.f,  &params.vort, "Vorticity",  TYPE_FLOAT},
+    {5.f,   1024.f, &params.N,    "N",          TYPE_FLOAT},
 };
+
 
 // --- drawing helpers ---
 static void drawVelocity(){
@@ -182,11 +184,12 @@ static void display_ui() {
         glEnd();
         
         char label[64];
+        // ******************** FIX 3: Use new enum names here ********************
         switch (slider->type) {
-            case INT:
+            case TYPE_INT:
                 sprintf(label, "%s: %3d", slider->label, *slider->value);
                 break;
-            case FLOAT:
+            case TYPE_FLOAT:
                 if (i == 4) {
                     sprintf(label, "%s: %3d", slider->label, (int) *slider->value);
                 } else {
@@ -384,12 +387,13 @@ static void motion_ui(int x, int y) {
         slider_position = std::max(0, std::min(slider_position, slider_width));
         Slider* slider = &sliders[slider_idx];
         
+        // ******************** FIX 4: Use new enum names here ********************
         switch (slider->type) {
-            case INT:
+            case TYPE_INT:
                 *slider->value = (int) (slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value));
 
                 break;
-            case FLOAT:
+            case TYPE_FLOAT:
                 *slider->value = slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value);
 
                 if (slider_idx == 4) {
