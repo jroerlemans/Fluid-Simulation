@@ -10,33 +10,38 @@ find_package(GLUT REQUIRED)
 
 add_library(fluid STATIC
     # Core simulation files
-    src/BoundarySolver.cpp
-    src/FluidGrid.cpp
-    src/FluidSolver.cpp
-    src/Vec2.cpp
+    src/BoundarySolver.cpp    include/BoundarySolver.h
+    src/FluidGrid.cpp         include/FluidGrid.h
+    src/FluidSolver.cpp       include/FluidSolver.h
+    src/Vec2.cpp              include/Vec2.h
+    include/Util.h
 
     # Obstacle and boundary management
-    src/ObstacleManager.cpp
-    src/RectObstacle.cpp
-    src/MovableObstacle.cpp       # <-- ADDED
-    src/MovableRectObstacle.cpp
-    src/DiskObstacle.cpp          # <-- ADDED
+    src/ObstacleManager.cpp   include/ObstacleManager.h
+    src/RectObstacle.cpp      include/RectObstacle.h
+    src/MovableObstacle.cpp   include/MovableObstacle.h
+    src/MovableRectObstacle.cpp include/MovableRectObstacle.h
+    src/DiskObstacle.cpp      include/DiskObstacle.h
+    include/Obstacle.h
     
     # Empty placeholder files
-    src/SolidBoundary.cpp
-    src/Source.cpp
+    src/SolidBoundary.cpp     include/SolidBoundary.h
+    src/Source.cpp            include/Source.h
 )
 
 target_include_directories(fluid PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include
 )
 
 add_executable(FluidToy src/main.cpp)
 
+# Link using modern imported targets.
+# Add OpenGL::GLU to link the OpenGL Utility Library.
 target_link_libraries(FluidToy PRIVATE
     fluid
-    ${GLUT_LIBRARIES}
-    ${OPENGL_LIBRARIES}
+    GLUT::GLUT
+    OpenGL::GL
+    OpenGL::GLU   # <-- THE FIX IS HERE
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
