@@ -43,14 +43,17 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-g -std=c++14"
+					"fragment" : "-g"
+				},
+				{
+					"fragment" : "-std=c++14"
 				}
 			],
 			"includes" : 
 			[
 				{
 					"backtrace" : 2,
-					"path" : "D:/TUE/Q4/Simulations/A2/include"
+					"path" : "C:/Users/JerOe/Documents/2IMV15-Group9-A2/include"
 				}
 			],
 			"language" : "CXX",

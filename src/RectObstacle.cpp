@@ -4,7 +4,10 @@
 #include <GL/glut.h>
 
 RectObstacle::RectObstacle(int x, int y, int w, int h, int gridN)
-    : m_x(x), m_y(y), m_w(w), m_h(h), m_gridN(gridN) {}
+    : m_x(x), m_y(y), m_w(w), m_h(h), m_gridN(gridN) {
+        m_xf = static_cast<float>(m_x);  // ✅ align float and int positions
+        m_yf = static_cast<float>(m_y);
+    }
 
 void RectObstacle::apply(FluidGrid& grid) const {
     float* u = grid.u();
@@ -21,6 +24,44 @@ void RectObstacle::apply(FluidGrid& grid) const {
             }
         }
     }
+}
+
+void RectObstacle::updateFromFluid(FluidGrid& grid, float dt) {
+    float* u = grid.u();
+    float* v = grid.v();
+    int N = grid.size();
+
+    float sumU = 0.f;
+    float sumV = 0.f;
+    int count = 0;
+
+    for (int i = m_x; i < m_x + m_w; ++i) {
+        for (int j = m_y; j < m_y + m_h; ++j) {
+            if (i > 0 && i <= N && j > 0 && j <= N) {
+                int idx = IX(i, j, N);
+                sumU += u[idx];
+                sumV += v[idx];
+                ++count;
+            }
+        }
+    }
+
+    if (count == 0) return;
+
+    float avgU = sumU / count;
+    float avgV = sumV / count;
+
+    // Drag influence (adjust coefficient as needed)
+    float drag = 1.0f;
+    m_vx += (avgU - m_vx) * drag * dt;
+    m_vy += (avgV - m_vy) * drag * dt;
+
+    // Update position based on velocity
+    m_xf += m_vx * dt * 3;
+    m_yf += m_vy * dt * 3;
+
+    m_x = std::max(1, std::min(N - m_w, static_cast<int>(m_xf)));
+    m_y = std::max(1, std::min(N - m_h, static_cast<int>(m_yf)));
 }
 
 void RectObstacle::draw() const {

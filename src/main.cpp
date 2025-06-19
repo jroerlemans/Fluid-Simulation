@@ -44,6 +44,7 @@ static int  omx, omy, mx, my;
 static MovableObstacle* selected_obstacle = nullptr;
 static bool is_dragging_object = false;
 static bool is_dragging_slider = false;
+static bool two_way_coupling = false;
 static int current_source_type = 0;
 
 // --- UI Globals for Slider ---
@@ -232,11 +233,16 @@ static void idle(){
     getFromUI(); 
 
     if (obstacleManager) {
+        if (two_way_coupling) {
+            obstacleManager->updateObstacles(grid, dt);
+        }
         obstacleManager->update(dt);
         obstacleManager->handleCollisions();
     }
     
     solver.step();
+
+    obstacleManager->applyTo(grid);
     glutPostRedisplay(); 
 }
 
@@ -255,6 +261,10 @@ static void key(unsigned char c, int x, int y){
             break;
         case 'v': case 'V': showVel=!showVel; break;
         case 'q': case 'Q': std::exit(0); break;
+        case 't':
+            two_way_coupling = !two_way_coupling;
+            printf("Two-way coupling set to %s\n", two_way_coupling ? "true" : "false");
+            break;
         case '1': 
             if (obstacleManager) obstacleManager->addFixedRect(i-2,j-2,5,5); 
             break;

@@ -18,6 +18,7 @@ public:
     void applyTo(FluidGrid& grid) override;
     void update(float dt);
     void handleCollisions();
+    void updateObstacles(FluidGrid& grid, float dt);
 
     void addFixedRect(int x, int y, int w, int h);
     void addMovableRect(int x, int y, int w, int h);

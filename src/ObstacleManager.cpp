@@ -18,6 +18,12 @@ void ObstacleManager::applyTo(FluidGrid& grid) {
     }
 }
 
+void ObstacleManager::updateObstacles(FluidGrid& grid, float dt) {
+    for (const auto& obs : m_obstacles) {
+        obs->updateFromFluid(grid, dt);
+    }
+}
+
 void ObstacleManager::update(float dt) {
     for (auto& obs : m_obstacles) {
         obs->update(dt);

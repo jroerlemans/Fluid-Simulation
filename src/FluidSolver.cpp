@@ -171,9 +171,9 @@ void FluidSolver::step(){
     std::swap(temp0, temp); advect  (0,temp,temp0,u,v);
 
     // Apply all solid boundary conditions at the end of the step
-    for (auto& b : m_boundaries) {
-        b->applyTo(*g);
-    }
+    // for (auto& b : m_boundaries) {
+    //     b->applyTo(*g);
+    // }
 
     // The call to m_obstacleManager->update(dt) is now handled in main.cpp's idle() loop
 }
