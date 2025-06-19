@@ -85,11 +85,11 @@ typedef struct {
 } Slider;
 
 Slider sliders[] = {
-    {0.01f, 0.4f, &params.dt,   "Delta time", TYPE_FLOAT},
-    {0.f,   0.01f, &params.diff, "Diffusion",  TYPE_FLOAT},
-    {0.f,   0.01f, &params.visc, "Viscosity",  TYPE_FLOAT},
-    {0.f,   20.f,  &params.vort, "Vorticity",  TYPE_FLOAT},
-    {5.f,   1024.f, &params.N,    "N",          TYPE_FLOAT},
+    {0.01f, 0.2f, &params.dt,   "Delta time", TYPE_FLOAT},
+    {0.f,   0.001f, &params.diff, "Diffusion",  TYPE_FLOAT},
+    {0.f,   0.001f, &params.visc, "Viscosity",  TYPE_FLOAT},
+    {0.f,   5.f,  &params.vort, "Vorticity",  TYPE_FLOAT},
+    {5.f,   512.f, &params.N,    "N",          TYPE_FLOAT},
 };
 
 
