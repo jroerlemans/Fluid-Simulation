@@ -3,7 +3,7 @@
 
 class DiskObstacle : public MovableObstacle {
 public:
-    DiskObstacle(int x, int y, int radius, int gridN);
+    DiskObstacle(int x, int y, int radius, int w, int h, int gridN);
     ~DiskObstacle() override = default;
 
     // --- Obstacle Interface ---
@@ -20,8 +20,9 @@ public:
 
 private:
     int m_radius;
-    int m_x, m_y, m_w, m_h;
-    float m_vx = 0.f, m_vy = 0.f;
-    float m_xf = 0.f, m_yf = 0.f;
+    int m_w, m_h;
+    // int m_x, m_y, m_w, m_h;
+    // float m_vx = 0.f, m_vy = 0.f;
+    // float m_xf = 0.f, m_yf = 0.f;
     int m_gridN;
 };

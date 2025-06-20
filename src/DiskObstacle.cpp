@@ -7,14 +7,14 @@
 
 #define PI 3.1415926535f
 
-DiskObstacle::DiskObstacle(int x, int y, int radius, int gridN)
-    : MovableObstacle(static_cast<float>(x), static_cast<float>(y)), m_radius(radius), m_gridN(gridN)
+DiskObstacle::DiskObstacle(int x, int y, int radius, int w, int h, int gridN)
+    : MovableObstacle(static_cast<float>(x), static_cast<float>(y)), m_radius(radius), m_w(w), m_h(h), m_gridN(gridN)
 {
     // Mass is proportional to area
     m_mass = PI * static_cast<float>(m_radius * m_radius);
     m_inverseMass = (m_mass > 0) ? 1.0f / m_mass : 0.f;
-    m_xf = static_cast<float>(m_x);  // ✅ align float and int positions
-    m_yf = static_cast<float>(m_y);
+    // m_xf = static_cast<float>(m_x);  // ✅ align float and int positions
+    // m_yf = static_cast<float>(m_y);
 }
 
 void DiskObstacle::apply(FluidGrid& grid) const {
@@ -72,11 +72,11 @@ void DiskObstacle::updateFromFluid(FluidGrid& grid, float dt) {
     m_vy += (avgV - m_vy) * drag * dt;
 
     // Update position based on velocity
-    m_xf += m_vx * dt;
-    m_yf += m_vy * dt;
+    m_x += m_vx * dt;
+    m_y += m_vy * dt;
 
-    m_x = std::max(1, std::min(N - m_w, static_cast<int>(m_xf)));
-    m_y = std::max(1, std::min(N - m_h, static_cast<int>(m_yf)));
+    // m_x = std::max(1.0f, std::min(static_cast<float>(N) - m_w, m_xf));
+    // m_y = std::max(1.0f, std::min(static_cast<float>(N) - m_h, m_y));
 }
 
 void DiskObstacle::draw() const {

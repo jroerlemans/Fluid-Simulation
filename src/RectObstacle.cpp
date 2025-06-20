@@ -57,11 +57,13 @@ void RectObstacle::updateFromFluid(FluidGrid& grid, float dt) {
     m_vy += (avgV - m_vy) * drag * dt;
 
     // Update position based on velocity
-    m_xf += m_vx * dt * 3;
-    m_yf += m_vy * dt * 3;
+    m_x += m_vx * dt;
+    m_y += m_vy * dt;
 
-    m_x = std::max(1, std::min(N - m_w, static_cast<int>(m_xf)));
-    m_y = std::max(1, std::min(N - m_h, static_cast<int>(m_yf)));
+    //m_x = std::max(1.0f, std::min(static_cast<float>(N) - m_w, m_xf));
+    //m_y = std::max(1.0f, std::min(static_cast<float>(N) - m_h, m_y));
+    //m_x = std::max(1, std::min(N - m_w, static_cast<int>(m_xf)));
+    //m_y = std::max(1, std::min(N - m_h, static_cast<int>(m_yf)));
 }
 
 void RectObstacle::draw() const {

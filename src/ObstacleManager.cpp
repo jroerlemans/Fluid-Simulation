@@ -237,8 +237,8 @@ void ObstacleManager::addMovableRect(int x, int y, int w, int h) {
     m_obstacles.push_back(std::make_unique<MovableRectObstacle>(x, y, w, h, m_gridN));
 }
 
-void ObstacleManager::addDisk(int x, int y, int r) {
-    m_obstacles.push_back(std::make_unique<DiskObstacle>(x, y, r, m_gridN));
+void ObstacleManager::addDisk(int x, int y, int r, int w, int h) {
+    m_obstacles.push_back(std::make_unique<DiskObstacle>(x, y, r, w, h, m_gridN));
 }
 
 MovableObstacle* ObstacleManager::findMovableAt(int x, int y) {

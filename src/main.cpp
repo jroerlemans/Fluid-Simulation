@@ -272,7 +272,7 @@ static void key(unsigned char c, int x, int y){
             if (obstacleManager) obstacleManager->addMovableRect(i-4,j-4,8,16); 
             break;
         case '3':
-            if (obstacleManager) obstacleManager->addDisk(i, j, 6);
+            if (obstacleManager) obstacleManager->addDisk(i, j, 6, 8, 16);
             break;
     }
 }
@@ -381,7 +381,7 @@ static void motion_simulation(int x, int y) {
         const float drag_vel_scale = 1.0f; 
         float vx = (x - mx) * (N / (dt*float(simulation_size))) * drag_vel_scale;
         float vy = (y - my) * (N / (dt*float(simulation_size))) * drag_vel_scale;
-        std::cout << x - mx <<  " by " << y - my << std::endl;
+        //std::cout << x - mx <<  " by " << y - my << std::endl;
         selected_obstacle->setVelocity(vx, vy);
     }
 
@@ -457,6 +457,7 @@ int main(int argc,char** argv){
               "  1           : add a fixed solid block\n"
               "  2           : add a movable solid rectangle\n"
               "  3           : add a movable solid disk\n"
+              "  t           : toggle two way coupling on/off\n"
               "  b           : toggle buoyancy on/off\n"
               "  v           : toggle velocity / density display\n"
               "  c           : clear simulation and obstacles\n"

@@ -22,7 +22,7 @@ public:
 
     void addFixedRect(int x, int y, int w, int h);
     void addMovableRect(int x, int y, int w, int h);
-    void addDisk(int x, int y, int r); // New method
+    void addDisk(int x, int y, int r, int w, int h); // New method
 
     MovableObstacle* findMovableAt(int x, int y); // Returns the new base class
     void draw() const;
