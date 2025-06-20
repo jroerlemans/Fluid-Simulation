@@ -24,7 +24,7 @@ public:
 
 private:
     int m_w, m_h;
-    float m_vx = 0.f, m_vy = 0.f;
-    float m_xf = 0.f, m_yf = 0.f;
     int m_gridN;
+
+  
 };

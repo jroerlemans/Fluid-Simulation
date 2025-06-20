@@ -71,7 +71,6 @@ typedef struct {
 
 FluidParameters params = {0.1f, 0.f, 0.f, 5.f, 64};
 
-// ******************** FIX 1: Rename enum members ********************
 typedef enum {
     TYPE_INT,
     TYPE_FLOAT
@@ -92,7 +91,6 @@ Slider sliders[] = {
     {0.f,   5.f,  &params.vort, "Vorticity",  TYPE_FLOAT},
     {5.f,   512.f, &params.N,    "N",          TYPE_FLOAT},
 };
-
 
 // --- drawing helpers ---
 static void drawVelocity(){
@@ -146,13 +144,11 @@ static void getFromUI(){
     if(i<1||i>N||j<1||j>N) return;
 
     if(mouseDown[0]){ 
-        // FIX: Scale the added velocity by dt to make it consistent
         float force_x = cmd_force * (mx - omx) * dt;
         float force_y = cmd_force * (my - omy) * dt;
         solver.addVelocity(i, j, force_x, force_y); 
     }
     if(mouseDown[2]){
-        // FIX: Scale the added sources by dt
         if (current_source_type == 1) { 
             solver.addTemperature(i, j, cmd_source * 2.0f * dt);
         } else {
@@ -185,10 +181,9 @@ static void display_ui() {
         glEnd();
         
         char label[64];
-        // ******************** FIX 3: Use new enum names here ********************
         switch (slider->type) {
             case TYPE_INT:
-                sprintf(label, "%s: %3d", slider->label, *slider->value);
+                sprintf(label, "%s: %3d", slider->label, (int)*slider->value);
                 break;
             case TYPE_FLOAT:
                 if (i == 4) {
@@ -233,7 +228,7 @@ static void idle(){
     getFromUI(); 
 
     if (obstacleManager) {
-        if (two_way_coupling) {
+        if (two_way_coupling && !is_dragging_object) {
             obstacleManager->updateObstacles(grid, dt);
         }
         obstacleManager->update(dt);
@@ -242,7 +237,6 @@ static void idle(){
     
     solver.step();
 
-    obstacleManager->applyTo(grid);
     glutPostRedisplay(); 
 }
 
@@ -319,7 +313,7 @@ static void mouse_simulation(int button, int state, int x, int y) {
             int i = int((mx / float(simulation_size)) * N + 1);
             int j = int((my / float(simulation_size)) * N + 1);
 
-            selected_obstacle = obstacleManager->findMovableAt(i, j); // This now returns MovableObstacle*
+            selected_obstacle = obstacleManager->findMovableAt(i, j); 
             if (selected_obstacle) {
                 is_dragging_object = true;
                 selected_obstacle->setSelected(true);
@@ -327,6 +321,8 @@ static void mouse_simulation(int button, int state, int x, int y) {
         }
     } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
         if (selected_obstacle) {
+            selected_obstacle->setVelocity(0.f, 0.f);
+            selected_obstacle->setAngularVelocity(0.f);
             selected_obstacle->setSelected(false);
             selected_obstacle = nullptr;
         }
@@ -359,7 +355,6 @@ static void mouse_ui(int button, int state, int x, int y) {
 
 static void mouse(int button, int state, int x, int y) {
     if (x < simulation_size) {
-        // We invert the y-coordinate so that it matches the opengl coordinate system
         mouse_simulation(button, state, x, winY - y);
     } else {
         mouse_ui(button, state, x - simulation_size, winY - y);
@@ -372,17 +367,20 @@ static void motion_simulation(int x, int y) {
         dt = std::max(dt_min, std::min(dt_max, new_dt));
     } else if (is_dragging_object && selected_obstacle) {
         Vec2 pos = selected_obstacle->getPosition();
-        pos.x += (x - mx) / float(simulation_size) * N;
-        pos.y += (y - my) / float(simulation_size) * N;
+        float dx_grid = (x - mx) / float(simulation_size) * N;
+        float dy_grid = (y - my) / float(simulation_size) * N;
         
+        pos.x += dx_grid;
+        pos.y += dy_grid;
         selected_obstacle->updatePosition(pos);
 
-        
-        const float drag_vel_scale = 1.0f; 
-        float vx = (x - mx) * (N / (dt*float(simulation_size))) * drag_vel_scale;
-        float vy = (y - my) * (N / (dt*float(simulation_size))) * drag_vel_scale;
-        //std::cout << x - mx <<  " by " << y - my << std::endl;
-        selected_obstacle->setVelocity(vx, vy);
+        // --- ** VELOCITY FIX HERE ** ---
+        // Calculate velocity based on grid space delta per second, not per frame.
+        // This gives a more consistent feel regardless of the time step 'dt'.
+        if (dt > 0.f) {
+            float inv_dt = 1.f / dt;
+            selected_obstacle->setVelocity(dx_grid * inv_dt, dy_grid * inv_dt);
+        }
     }
 
     mx = x; 
@@ -390,22 +388,18 @@ static void motion_simulation(int x, int y) {
 }
 
 static void motion_ui(int x, int y) {
-    // Convert to x-coordinate to slider coordinate
     int slider_position = x - padding;
 
     if (slider_idx != -1) {
         slider_position = std::max(0, std::min(slider_position, slider_width));
         Slider* slider = &sliders[slider_idx];
         
-        // ******************** FIX 4: Use new enum names here ********************
         switch (slider->type) {
             case TYPE_INT:
                 *slider->value = (int) (slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value));
-
                 break;
             case TYPE_FLOAT:
                 *slider->value = slider->min_value + slider_position / (float) slider_width * (slider->max_value - slider->min_value);
-
                 if (slider_idx == 4) {
                     N = (int) params.N;
                     obstacleManager.reset(new ObstacleManager(N));
@@ -413,7 +407,6 @@ static void motion_ui(int x, int y) {
                     solver = FluidSolver(grid, obstacleManager.get());
                     solver.force = cmd_force;
                     solver.source = cmd_source;
-                    solver.addBoundary(obstacleManager.get());
                 }
                 break;
         }
@@ -422,7 +415,6 @@ static void motion_ui(int x, int y) {
 
 static void motion(int x, int y) {
     if (x < simulation_size) {
-        // We invert the y-coordinate so that it matches the opengl coordinate system
         motion_simulation(x, winY - y);
     } else {
         motion_ui(x - simulation_size, winY - y);
@@ -440,7 +432,6 @@ int main(int argc,char** argv){
     solver = FluidSolver(grid, obstacleManager.get());
     solver.force = cmd_force;
     solver.source = cmd_source;
-    solver.addBoundary(obstacleManager.get());
 
     initialize_walls();
 

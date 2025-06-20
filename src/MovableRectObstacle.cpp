@@ -14,8 +14,7 @@ MovableRectObstacle::MovableRectObstacle(int x, int y, int w, int h, int gridN)
 {
     m_mass = static_cast<float>(m_w * m_h);
     m_inverseMass = (m_mass > 0) ? 1.0f / m_mass : 0.0f;
-    m_xf = static_cast<float>(m_x);  // ✅ align float and int positions
-    m_yf = static_cast<float>(m_y);
+ 
 }
 
 bool MovableRectObstacle::contains(int x, int y) const {
@@ -38,7 +37,6 @@ bool MovableRectObstacle::contains(int x, int y) const {
 void MovableRectObstacle::apply(FluidGrid& grid) const {
     float* u = grid.u();
     float* v = grid.v();
-    float* dens = grid.dens();
     int N = grid.size();
 
     float max_dim = std::sqrt(static_cast<float>(m_w*m_w + m_h*m_h)) / 2.f + 2.f;
@@ -53,7 +51,6 @@ void MovableRectObstacle::apply(FluidGrid& grid) const {
             if(contains(i, j)) {
                 u[IX(i, j, N)] = m_vx;
                 v[IX(i, j, N)] = m_vy;
-                dens[IX(i, j, N)] = 0.f;
             }
         }
     }
@@ -67,10 +64,17 @@ void MovableRectObstacle::updateFromFluid(FluidGrid& grid, float dt) {
     float sumU = 0.f;
     float sumV = 0.f;
     int count = 0;
+    
+    float max_dim = std::sqrt(static_cast<float>(m_w*m_w + m_h*m_h)) / 2.f + 2.f;
+    Vec2 center = getCenter();
+    int i_min = std::max(1, static_cast<int>(center.x - max_dim));
+    int i_max = std::min(N, static_cast<int>(center.x + max_dim));
+    int j_min = std::max(1, static_cast<int>(center.y - max_dim));
+    int j_max = std::min(N, static_cast<int>(center.y + max_dim));
 
-    for (int i = m_x; i < m_x + m_w; ++i) {
-        for (int j = m_y; j < m_y + m_h; ++j) {
-            if (i > 0 && i <= N && j > 0 && j <= N) {
+    for (int i = i_min; i <= i_max; ++i) {
+        for (int j = j_min; j <= j_max; ++j) {
+            if(contains(i, j)) {
                 int idx = IX(i, j, N);
                 sumU += u[idx];
                 sumV += v[idx];
@@ -84,17 +88,9 @@ void MovableRectObstacle::updateFromFluid(FluidGrid& grid, float dt) {
     float avgU = sumU / count;
     float avgV = sumV / count;
 
-    // Drag influence (adjust coefficient as needed)
-    float drag = 0.1f;
-    m_vx += (avgU - m_vx) * drag * dt;
-    m_vy += (avgV - m_vy) * drag * dt;
-
-    // Update position based on velocity
-    m_x += m_vx * dt;
-    m_y += m_vy * dt;
-
-    //m_x = std::max(1.0f, std::min(static_cast<float>(N) - m_w, m_xf));
-    //m_y = std::max(1.0f, std::min(static_cast<float>(N) - m_h, m_y));
+    float coupling_strength = 50.0f; 
+    m_vx += (avgU - m_vx) * coupling_strength * m_inverseMass * dt;
+    m_vy += (avgV - m_vy) * coupling_strength * m_inverseMass * dt;
 }
 
 void MovableRectObstacle::draw() const {
@@ -133,7 +129,7 @@ void MovableRectObstacle::updatePosition(int newX, int newY) {
 }
 
 Vec2 MovableRectObstacle::getCenter() const {
-    return getPosition() + Vec2(m_w/2.f, m_h/2.f);
+    return getPosition() + Vec2(m_w / 2.f, m_h / 2.f);
 }
 
 void MovableRectObstacle::getVertices(std::vector<Vec2>& vertices) const {

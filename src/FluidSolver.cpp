@@ -143,22 +143,25 @@ void FluidSolver::step(){
     addSource(N, temp, temp0, dt); // New
 
     // --- APPLY FORCES ---
-    // Apply buoyancy force if toggled on
     if (buoyancy_on) {
         applyBuoyancy(v, temp);
     }
-
-    // Vorticity confinement
     confine(u, v, w);
 
     // --- SOLVE VELOCITY ---
     std::swap(u0, u); diffuse (1,u,u0,visc);
     std::swap(v0, v); diffuse (2,v,v0,visc);
+
+    // Apply obstacle velocities before projection to make fluid flow around them
+    if (m_obstacleManager) m_obstacleManager->applyTo(*g);
     project (u,v,u0,v0);
 
     std::swap(u0, u); std::swap(v0, v);
     advect  (1,u,u0,u0,v0);
     advect  (2,v,v0,u0,v0);
+    
+    // Apply obstacle velocities again before final projection
+    if (m_obstacleManager) m_obstacleManager->applyTo(*g);
     project (u,v,u0,v0);
 
     // --- SOLVE SCALARS ---
@@ -169,11 +172,4 @@ void FluidSolver::step(){
     // Temperature (behaves just like density)
     std::swap(temp0, temp); diffuse (0,temp,temp0,temp_diffusivity);
     std::swap(temp0, temp); advect  (0,temp,temp0,u,v);
-
-    // Apply all solid boundary conditions at the end of the step
-    // for (auto& b : m_boundaries) {
-    //     b->applyTo(*g);
-    // }
-
-    // The call to m_obstacleManager->update(dt) is now handled in main.cpp's idle() loop
 }
