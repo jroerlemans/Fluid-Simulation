@@ -374,9 +374,7 @@ static void motion_simulation(int x, int y) {
         pos.y += dy_grid;
         selected_obstacle->updatePosition(pos);
 
-        // --- ** VELOCITY FIX HERE ** ---
-        // Calculate velocity based on grid space delta per second, not per frame.
-        // This gives a more consistent feel regardless of the time step 'dt'.
+   
         if (dt > 0.f) {
             float inv_dt = 1.f / dt;
             selected_obstacle->setVelocity(dx_grid * inv_dt, dy_grid * inv_dt);

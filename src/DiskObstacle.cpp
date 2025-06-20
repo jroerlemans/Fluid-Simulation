@@ -69,11 +69,7 @@ void DiskObstacle::updateFromFluid(FluidGrid& grid, float dt) {
     float avgU = sumU / count;
     float avgV = sumV / count;
 
-    // --- ** FIX 2 HERE ** ---
-    // The coupling strength is a tunable parameter for force strength.
-    // The force's effect is now correctly scaled by the object's inverse mass,
-    // making lighter objects easier to push than heavy ones.
-    // Increased strength significantly to make the effect more noticeable.
+ 
     float coupling_strength = 50.0f;
     m_vx += (avgU - m_vx) * coupling_strength * m_inverseMass * dt;
     m_vy += (avgV - m_vy) * coupling_strength * m_inverseMass * dt;

@@ -35,13 +35,12 @@ target_include_directories(fluid PUBLIC
 
 add_executable(FluidToy src/main.cpp)
 
-# Link using modern imported targets.
-# Add OpenGL::GLU to link the OpenGL Utility Library.
+
 target_link_libraries(FluidToy PRIVATE
     fluid
     GLUT::GLUT
     OpenGL::GL
-    OpenGL::GLU   # <-- THE FIX IS HERE
+    OpenGL::GLU   
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
