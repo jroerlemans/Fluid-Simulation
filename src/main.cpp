@@ -39,6 +39,9 @@ static int  winX = simulation_size + ui_size;
 static int  winY = simulation_size;
 static int  mouseDown[3] = {0,0,0};
 static int  omx, omy, mx, my;
+static int  m_hist_x[5];
+static int  m_hist_y[5];
+static int  m_hist_idx = 0;
 
 // --- Interaction globals ---
 static MovableObstacle* selected_obstacle = nullptr;
@@ -237,6 +240,12 @@ static void idle(){
     
     solver.step();
 
+    
+
+    m_hist_x[m_hist_idx] = mx;
+    m_hist_y[m_hist_idx] = my;
+    m_hist_idx = (m_hist_idx+1)%5;
+
     glutPostRedisplay(); 
 }
 
@@ -321,7 +330,27 @@ static void mouse_simulation(int button, int state, int x, int y) {
         }
     } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
         if (selected_obstacle) {
-            selected_obstacle->setVelocity(0.f, 0.f);
+            // calculate avg velocity in m_hist_x/y
+
+            int idx = m_hist_idx;
+            idx=idx-4;
+            if (idx < 0) {
+                idx += 5;
+            }
+
+            int ox = m_hist_x[idx];
+            int oy = m_hist_y[idx];
+
+            for (int i = 0; i < 5; i++) {
+                m_hist_x[i] = 0;
+                m_hist_y[i] = 0;
+            }
+            m_hist_idx=0;
+
+            float avg_x = (x-ox) / 5.f;
+            float avg_y = (y-oy) / 5.f;
+
+            selected_obstacle->setVelocity(avg_x, avg_y);
             selected_obstacle->setAngularVelocity(0.f);
             selected_obstacle->setSelected(false);
             selected_obstacle = nullptr;
@@ -373,6 +402,7 @@ static void motion_simulation(int x, int y) {
         pos.x += dx_grid;
         pos.y += dy_grid;
         selected_obstacle->updatePosition(pos);
+
 
    
         if (dt > 0.f) {
